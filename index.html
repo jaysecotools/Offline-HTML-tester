@@ -5,36 +5,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Offline Code Playground</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f5f5f5; }
-        .editor-container { display: flex; flex-wrap: wrap; gap: 10px; }
-        .editor-box { flex: 1; min-width: 250px; }
-        .code-box { 
-            width: 100%; height: 150px; font-family: 'Courier New', monospace; 
-            padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; 
-            background: #f8f8f8; 
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 10px; 
+            background: #f5f5f5; 
+            overflow: hidden;
         }
-        .button-group { display: flex; gap: 5px; margin: 5px 0; }
+        .editor-container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            height: calc(100vh - 100px);
+        }
+        .editor-box { 
+            flex: 1; 
+            min-width: 250px; 
+            display: flex; 
+            flex-direction: column;
+            height: 100%;
+        }
+        .code-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .code-box { 
+            width: 100%; 
+            flex: 1; 
+            font-family: 'Courier New', monospace; 
+            padding: 8px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            background: #f8f8f8; 
+            resize: none;
+        }
+        .button-group { 
+            display: flex; 
+            gap: 5px; 
+            margin: 5px 0; 
+        }
         button { 
-            padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;
+            padding: 8px 16px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
         }
         .run-btn { background: #0078d4; color: white; }
         .stop-btn { background: #d40000; color: white; }
         .reset-btn { background: #ff9500; color: white; }
         .clear-btn { background: #555; color: white; }
         button:hover { opacity: 0.9; }
-        .output-container { margin-top: 10px; }
-        .output { 
-            border: 1px solid #ccc; padding: 10px; min-height: 200px; 
-            background: white; border-radius: 4px; 
+        .output-container { 
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
-        .error { color: red; font-family: monospace; white-space: pre-wrap; }
-        .tab-buttons { display: flex; gap: 5px; margin-bottom: 5px; }
+        .output { 
+            flex: 1;
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            background: white; 
+            border-radius: 4px; 
+            overflow: auto;
+        }
+        .error { 
+            color: red; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            margin-top: 5px;
+        }
+        .tab-buttons { 
+            display: flex; 
+            gap: 5px; 
+            margin-bottom: 5px; 
+        }
         .tab-button { 
-            padding: 5px 10px; background: #ddd; border: none; 
-            border-radius: 4px 4px 0 0; cursor: pointer; 
+            padding: 5px 10px; 
+            background: #ddd; 
+            border: none; 
+            border-radius: 4px 4px 0 0; 
+            cursor: pointer; 
         }
         .tab-button.active { background: #0078d4; color: white; }
         .hidden { display: none; }
+        .resizer {
+            height: 10px;
+            background: #ddd;
+            cursor: row-resize;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -48,9 +111,14 @@
                 <button class="tab-button" onclick="showTab('css')">CSS</button>
                 <button class="tab-button" onclick="showTab('js')">JavaScript</button>
             </div>
-            <textarea id="html-code" class="code-box" placeholder="Enter HTML here..."><div id="demo">Hello, World!</div></textarea>
-            <textarea id="css-code" class="code-box hidden" placeholder="Enter CSS here...">#demo { color: red; font-size: 24px; }</textarea>
-            <textarea id="js-code" class="code-box hidden" placeholder="Enter JavaScript here...">document.getElementById("demo").style.fontWeight = "bold";</textarea>
+            <div class="code-container">
+                <textarea id="html-code" class="code-box" placeholder="Enter HTML here..."><div id="demo">Hello, World!</div></textarea>
+                <textarea id="css-code" class="code-box hidden" placeholder="Enter CSS here...">#demo { color: red; font-size: 24px; }</textarea>
+                <textarea id="js-code" class="code-box hidden" placeholder="Enter JavaScript here...">document.addEventListener('DOMContentLoaded', function() {
+    const demo = document.getElementById("demo");
+    if (demo) demo.style.fontWeight = "bold";
+});</textarea>
+            </div>
             
             <div class="button-group">
                 <button class="run-btn" onclick="runCode()">▶ Run</button>
@@ -62,8 +130,10 @@
         
         <div class="editor-box">
             <h3>Output</h3>
-            <div id="output" class="output"></div>
-            <div id="error" class="error"></div>
+            <div class="output-container">
+                <div id="output" class="output"></div>
+                <div id="error" class="error"></div>
+            </div>
         </div>
     </div>
 
@@ -117,7 +187,7 @@
         function resetCode() {
             document.getElementById("html-code").value = '<div id="demo">Hello, World!</div>';
             document.getElementById("css-code").value = '#demo { color: red; font-size: 24px; }';
-            document.getElementById("js-code").value = 'document.getElementById("demo").style.fontWeight = "bold";';
+            document.getElementById("js-code").value = `document.addEventListener('DOMContentLoaded', function() {\n    const demo = document.getElementById("demo");\n    if (demo) demo.style.fontWeight = "bold";\n});`;
             clearCode();
         }
 
@@ -158,7 +228,7 @@
             // Create new iframe
             currentIframe = document.createElement("iframe");
             currentIframe.style.width = "100%";
-            currentIframe.style.height = "200px";
+            currentIframe.style.height = "100%";
             currentIframe.style.border = "none";
             output.appendChild(currentIframe);
             
@@ -190,9 +260,47 @@
         function displayError(err) {
             document.getElementById("error").textContent = err;
         }
+
+        // Make panels resizable
+        function setupResizers() {
+            const container = document.querySelector('.editor-container');
+            const leftPanel = container.children[0];
+            const rightPanel = container.children[1];
+            
+            let isResizing = false;
+            
+            // Horizontal resizer (between panels)
+            const resizer = document.createElement('div');
+            resizer.className = 'resizer';
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            
+            container.insertBefore(resizer, rightPanel);
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const percent = (e.clientX - containerRect.left) / containerRect.width * 100;
+                
+                leftPanel.style.width = `calc(${percent}% - 5px)`;
+                rightPanel.style.width = `calc(${100 - percent}% - 5px)`;
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = '';
+            });
+        }
         
-        // Run default code on startup
-        runCode();
+        // Initialize
+        window.onload = function() {
+            setupResizers();
+            runCode();
+        };
     </script>
 </body>
 </html>
