@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline HTML/CSS/JS Validator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f5f5f5; }
+        .editor-container { display: flex; flex-wrap: wrap; gap: 10px; }
+        .editor-box { flex: 1; min-width: 250px; }
+        .code-box { 
+            width: 100%; height: 150px; font-family: 'Courier New', monospace; 
+            padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; 
+            background: #f8f8f8; 
+        }
+        button { 
+            padding: 8px 16px; background: #0078d4; color: white; 
+            border: none; border-radius: 4px; cursor: pointer; margin: 5px 0; 
+        }
+        button:hover { background: #005a9e; }
+        .output-container { margin-top: 10px; }
+        .output { 
+            border: 1px solid #ccc; padding: 10px; min-height: 200px; 
+            background: white; border-radius: 4px; 
+        }
+        .error { color: red; font-family: monospace; white-space: pre-wrap; }
+        .tab-buttons { display: flex; gap: 5px; margin-bottom: 5px; }
+        .tab-button { 
+            padding: 5px 10px; background: #ddd; border: none; 
+            border-radius: 4px 4px 0 0; cursor: pointer; 
+        }
+        .tab-button.active { background: #0078d4; color: white; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Offline HTML/CSS/JS Validator</h1>
+    <p>Write code below. Errors in <strong>HTML, CSS, or JS</strong> will appear in red.</p>
+
+    <div class="editor-container">
+        <div class="editor-box">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('html')">HTML</button>
+                <button class="tab-button" onclick="showTab('css')">CSS</button>
+                <button class="tab-button" onclick="showTab('js')">JavaScript</button>
+            </div>
+            <textarea id="html-code" class="code-box" placeholder="Enter HTML here..."><div id="demo">Hello, World!</div></textarea>
+            <textarea id="css-code" class="code-box hidden" placeholder="Enter CSS here...">#demo { color: red; font-size: 24px; }</textarea>
+            <textarea id="js-code" class="code-box hidden" placeholder="Enter JavaScript here...">document.getElementById("demo").style.fontWeight = "bold";</textarea>
+        </div>
+        
+        <div class="editor-box">
+            <h3>Output</h3>
+            <button onclick="runCode()">Run Code ▶</button>
+            <div id="output" class="output"></div>
+            <div id="error" class="error"></div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.code-box').forEach(box => box.classList.add('hidden'));
+            document.getElementById(`${tabName}-code`).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Validate HTML (basic unclosed tag check)
+        function validateHTML(html) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const errors = Array.from(doc.querySelectorAll('parsererror'));
+            if (errors.length > 0) {
+                return "HTML Error: Unclosed tag or invalid syntax.";
+            }
+            return null;
+        }
+
+        // Validate CSS (basic syntax check)
+        function validateCSS(css) {
+            try {
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+                document.head.removeChild(style);
+                return null;
+            } catch (err) {
+                return `CSS Error: ${err.message}`;
+            }
+        }
+
+        // Run code with full error checking
+        function runCode() {
+            const html = document.getElementById("html-code").value;
+            const css = document.getElementById("css-code").value;
+            const js = document.getElementById("js-code").value;
+            
+            const output = document.getElementById("output");
+            const errorDisplay = document.getElementById("error");
+            
+            // Clear previous output & errors
+            output.innerHTML = "";
+            errorDisplay.textContent = "";
+            
+            // Validate HTML
+            const htmlError = validateHTML(html);
+            if (htmlError) {
+                errorDisplay.textContent = htmlError;
+                return;
+            }
+            
+            // Validate CSS
+            const cssError = validateCSS(css);
+            if (cssError) {
+                errorDisplay.textContent = cssError;
+                return;
+            }
+            
+            // Run in iframe (JS errors caught separately)
+            const iframe = document.createElement("iframe");
+            iframe.style.width = "100%";
+            iframe.style.height = "200px";
+            iframe.style.border = "none";
+            output.appendChild(iframe);
+            
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            
+            try {
+                iframeDoc.open();
+                iframeDoc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                        <head><style>${css}</style></head>
+                        <body>${html}
+                            <script>
+                                try {
+                                    ${js}
+                                } catch (err) {
+                                    parent.displayError("JS Error: " + err.message);
+                                }
+                            <\/script>
+                        </body>
+                    </html>
+                `);
+                iframeDoc.close();
+            } catch (err) {
+                displayError("Frame Error: " + err.message);
+            }
+        }
+        
+        // Display errors
+        function displayError(err) {
+            document.getElementById("error").textContent = err;
+        }
+        
+        // Run on startup
+        runCode();
+    </script>
+</body>
+</html>
