@@ -10,47 +10,97 @@
             margin: 0; 
             padding: 10px; 
             background: #f5f5f5; 
-            overflow: hidden;
+            height: 100vh;
+            box-sizing: border-box;
         }
         .editor-container { 
             display: flex; 
             flex-wrap: wrap; 
             gap: 10px; 
-            height: calc(100vh - 100px);
+            height: calc(100vh - 120px);
         }
         .editor-box { 
             flex: 1; 
-            min-width: 250px; 
+            min-width: 300px; 
             display: flex; 
             flex-direction: column;
             height: 100%;
+            overflow: hidden;
         }
         .code-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .code-box-container {
+            position: relative;
+            flex: 1;
+            overflow: auto;
+            background: #f8f8f8;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
         .code-box { 
-            width: 100%; 
-            flex: 1; 
+            width: auto;
+            min-width: 100%;
+            min-height: 100px;
             font-family: 'Courier New', monospace; 
             padding: 8px; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-            background: #f8f8f8; 
+            border: none;
+            background: transparent; 
             resize: none;
+            overflow-y: auto;
+            box-sizing: border-box;
+            line-height: 1.5;
+            tab-size: 4;
+            white-space: pre;
+            outline: none;
+        }
+        .line-numbers {
+            position: sticky;
+            left: 0;
+            top: 0;
+            width: 30px;
+            height: 100%;
+            padding: 8px 4px;
+            border-right: 1px solid #ddd;
+            background-color: #eee;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            color: #666;
+            overflow: hidden;
+            user-select: none;
+            float: left;
+        }
+        .code-content {
+            display: flex;
+            min-width: 100%;
+        }
+        .error-marker {
+            position: absolute;
+            background-color: rgba(255, 0, 0, 0.2);
+            border-left: 3px solid red;
+            pointer-events: none;
+        }
+        .error-line {
+            background-color: rgba(255, 200, 200, 0.5);
         }
         .button-group { 
             display: flex; 
             gap: 5px; 
             margin: 5px 0; 
+            flex-wrap: wrap;
         }
         button { 
             padding: 8px 16px; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer;
+            flex: 1;
+            min-width: 80px;
         }
         .run-btn { background: #0078d4; color: white; }
         .stop-btn { background: #d40000; color: white; }
@@ -62,6 +112,7 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
+            overflow: hidden;
         }
         .output { 
             flex: 1;
@@ -76,11 +127,14 @@
             font-family: monospace; 
             white-space: pre-wrap; 
             margin-top: 5px;
+            overflow: auto;
+            max-height: 100px;
         }
         .tab-buttons { 
             display: flex; 
             gap: 5px; 
             margin-bottom: 5px; 
+            flex-wrap: wrap;
         }
         .tab-button { 
             padding: 5px 10px; 
@@ -88,6 +142,9 @@
             border: none; 
             border-radius: 4px 4px 0 0; 
             cursor: pointer; 
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
         }
         .tab-button.active { background: #0078d4; color: white; }
         .hidden { display: none; }
@@ -97,6 +154,9 @@
             cursor: row-resize;
             margin: 5px 0;
             border-radius: 3px;
+        }
+        h1, p {
+            margin: 5px 0;
         }
     </style>
 </head>
@@ -112,12 +172,27 @@
                 <button class="tab-button" onclick="showTab('js')">JavaScript</button>
             </div>
             <div class="code-container">
-                <textarea id="html-code" class="code-box" placeholder="Enter HTML here..."><div id="demo">Hello, World!</div></textarea>
-                <textarea id="css-code" class="code-box hidden" placeholder="Enter CSS here...">#demo { color: red; font-size: 24px; }</textarea>
-                <textarea id="js-code" class="code-box hidden" placeholder="Enter JavaScript here...">document.addEventListener('DOMContentLoaded', function() {
+                <div class="code-box-container" id="html-container">
+                    <div class="code-content">
+                        <div class="line-numbers" id="html-line-numbers"></div>
+                        <textarea id="html-code" class="code-box" placeholder="Enter HTML here..." spellcheck="false"><div id="demo">Hello, World!</div></textarea>
+                    </div>
+                </div>
+                <div class="code-box-container hidden" id="css-container">
+                    <div class="code-content">
+                        <div class="line-numbers" id="css-line-numbers"></div>
+                        <textarea id="css-code" class="code-box" placeholder="Enter CSS here..." spellcheck="false">#demo { color: red; font-size: 24px; }</textarea>
+                    </div>
+                </div>
+                <div class="code-box-container hidden" id="js-container">
+                    <div class="code-content">
+                        <div class="line-numbers" id="js-line-numbers"></div>
+                        <textarea id="js-code" class="code-box" placeholder="Enter JavaScript here..." spellcheck="false">document.addEventListener('DOMContentLoaded', function() {
     const demo = document.getElementById("demo");
     if (demo) demo.style.fontWeight = "bold";
 });</textarea>
+                    </div>
+                </div>
             </div>
             
             <div class="button-group">
@@ -139,30 +214,117 @@
 
     <script>
         let currentIframe = null;
+        let errorMarkers = [];
+        
+        // Initialize line numbers
+        function setupLineNumbers(textareaId, lineNumbersId) {
+            const textarea = document.getElementById(textareaId);
+            const lineNumbers = document.getElementById(lineNumbersId);
+            
+            function updateLineNumbers() {
+                const lines = textarea.value.split('\n');
+                lineNumbers.innerHTML = '';
+                
+                // Add line numbers
+                for (let i = 1; i <= lines.length; i++) {
+                    const lineNumber = document.createElement('div');
+                    lineNumber.textContent = i;
+                    lineNumbers.appendChild(lineNumber);
+                }
+                
+                // Match textarea height
+                lineNumbers.style.height = textarea.scrollHeight + 'px';
+            }
+            
+            textarea.addEventListener('input', updateLineNumbers);
+            textarea.addEventListener('scroll', () => {
+                lineNumbers.style.transform = `translateY(-${textarea.scrollTop}px)`;
+            });
+            
+            // Initial setup
+            updateLineNumbers();
+        }
+        
+        // Clear all error markers
+        function clearErrorMarkers() {
+            errorMarkers.forEach(marker => marker.remove());
+            errorMarkers = [];
+            document.querySelectorAll('.code-box').forEach(box => {
+                box.classList.remove('error-line');
+            });
+        }
+        
+        // Highlight error line
+        function highlightError(textareaId, line, message) {
+            const textarea = document.getElementById(textareaId);
+            const lines = textarea.value.split('\n');
+            
+            if (line < 1 || line > lines.length) return;
+            
+            // Highlight the entire line
+            textarea.classList.add('error-line');
+            
+            // Create error marker
+            const container = textarea.parentElement.parentElement;
+            const marker = document.createElement('div');
+            marker.className = 'error-marker';
+            marker.title = message;
+            
+            // Calculate position
+            const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
+            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop);
+            const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth);
+            
+            marker.style.top = `${(line - 1) * lineHeight + paddingTop + borderWidth}px`;
+            marker.style.height = `${lineHeight}px`;
+            marker.style.left = '30px';
+            marker.style.right = '0';
+            
+            container.appendChild(marker);
+            errorMarkers.push(marker);
+            
+            // Scroll to the error line
+            const scrollTo = (line - 3) * lineHeight;
+            textarea.scrollTop = Math.max(0, scrollTo);
+            textarea.focus();
+        }
         
         // Tab switching
         function showTab(tabName) {
-            document.querySelectorAll('.code-box').forEach(box => box.classList.add('hidden'));
-            document.getElementById(`${tabName}-code`).classList.remove('hidden');
+            document.querySelectorAll('.code-box-container').forEach(box => box.classList.add('hidden'));
+            document.getElementById(`${tabName}-container`).classList.remove('hidden');
             
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
         }
 
-        // Validate HTML
+        // Validate HTML with line numbers
         function validateHTML(html) {
             if (!html.trim()) return null;
-            const doc = new DOMParser().parseFromString(html, 'text/html');
-            const errors = Array.from(doc.querySelectorAll('parsererror'));
-            if (errors.length > 0) {
-                return "HTML Error: Unclosed tag or invalid syntax.";
+            
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const errors = Array.from(doc.querySelectorAll('parsererror'));
+                
+                if (errors.length > 0) {
+                    // Try to extract line number from error message
+                    const errorMsg = errors[0].textContent;
+                    const lineMatch = errorMsg.match(/line (\d+)/i);
+                    const line = lineMatch ? parseInt(lineMatch[1]) : 1;
+                    
+                    highlightError('html-code', line, "HTML Error: Invalid syntax");
+                    return `HTML Error on line ${line}: Invalid syntax`;
+                }
+                return null;
+            } catch (err) {
+                return `HTML Error: ${err.message}`;
             }
-            return null;
         }
 
-        // Validate CSS
+        // Validate CSS with line numbers
         function validateCSS(css) {
             if (!css.trim()) return null;
+            
             try {
                 const style = document.createElement('style');
                 style.textContent = css;
@@ -170,7 +332,31 @@
                 document.head.removeChild(style);
                 return null;
             } catch (err) {
-                return `CSS Error: ${err.message}`;
+                // Extract line number from CSS error (works in most browsers)
+                const lineMatch = err.message.match(/line (\d+)/i);
+                const line = lineMatch ? parseInt(lineMatch[1]) : 1;
+                
+                highlightError('css-code', line, err.message);
+                return `CSS Error on line ${line}: ${err.message.replace(/^CSS\..*?: /, '')}`;
+            }
+        }
+
+        // Validate JS with line numbers
+        function validateJS(js) {
+            if (!js.trim()) return null;
+            
+            try {
+                // This just checks syntax, not execution
+                new Function(js);
+                return null;
+            } catch (err) {
+                // Extract line number from JS error
+                const lineMatch = err.stack.match(/<anonymous>:(\d+):(\d+)/i) || 
+                                 err.stack.match(/eval:(\d+):(\d+)/i);
+                const line = lineMatch ? parseInt(lineMatch[1]) : 1;
+                
+                highlightError('js-code', line, err.message);
+                return `JS Error on line ${line}: ${err.message}`;
             }
         }
 
@@ -187,8 +373,12 @@
         function resetCode() {
             document.getElementById("html-code").value = '<div id="demo">Hello, World!</div>';
             document.getElementById("css-code").value = '#demo { color: red; font-size: 24px; }';
-            document.getElementById("js-code").value = `document.addEventListener('DOMContentLoaded', function() {\n    const demo = document.getElementById("demo");\n    if (demo) demo.style.fontWeight = "bold";\n});`;
+            document.getElementById("js-code").value = `document.addEventListener('DOMContentLoaded', function() {
+    const demo = document.getElementById("demo");
+    if (demo) demo.style.fontWeight = "bold";
+});`;
             clearCode();
+            updateAllLineNumbers();
         }
 
         // Clear output and errors
@@ -196,6 +386,14 @@
             stopCode();
             document.getElementById("output").innerHTML = "";
             document.getElementById("error").textContent = "";
+            clearErrorMarkers();
+        }
+        
+        // Update all line numbers
+        function updateAllLineNumbers() {
+            setupLineNumbers('html-code', 'html-line-numbers');
+            setupLineNumbers('css-code', 'css-line-numbers');
+            setupLineNumbers('js-code', 'js-line-numbers');
         }
 
         // Run code with full validation
@@ -209,6 +407,7 @@
             
             // Clear previous
             stopCode();
+            clearErrorMarkers();
             errorDisplay.textContent = "";
             
             // Validate HTML
@@ -222,6 +421,13 @@
             const cssError = validateCSS(css);
             if (cssError) {
                 errorDisplay.textContent = cssError;
+                return;
+            }
+            
+            // Validate JS syntax
+            const jsError = validateJS(js);
+            if (jsError) {
+                errorDisplay.textContent = jsError;
                 return;
             }
             
@@ -245,7 +451,7 @@
                                 try {
                                     ${js}
                                 } catch (err) {
-                                    parent.displayError("JS Error: " + err.message);
+                                    parent.displayError("JS Runtime Error on line " + (err.lineNumber || 1) + ": " + err.message);
                                 }
                             <\/script>
                         </body>
@@ -259,6 +465,13 @@
         
         function displayError(err) {
             document.getElementById("error").textContent = err;
+            
+            // Try to highlight runtime JS errors
+            const jsErrorMatch = err.match(/JS Runtime Error on line (\d+):/);
+            if (jsErrorMatch) {
+                const line = parseInt(jsErrorMatch[1]);
+                highlightError('js-code', line, err);
+            }
         }
 
         // Make panels resizable
@@ -299,7 +512,27 @@
         // Initialize
         window.onload = function() {
             setupResizers();
+            updateAllLineNumbers();
             runCode();
+            
+            // Setup line numbers for all editors
+            document.getElementById('html-code').addEventListener('input', () => {
+                setupLineNumbers('html-code', 'html-line-numbers');
+            });
+            document.getElementById('css-code').addEventListener('input', () => {
+                setupLineNumbers('css-code', 'css-line-numbers');
+            });
+            document.getElementById('js-code').addEventListener('input', () => {
+                setupLineNumbers('js-code', 'js-line-numbers');
+            });
+            
+            // Ensure proper horizontal scrolling
+            document.querySelectorAll('.code-box').forEach(textarea => {
+                textarea.addEventListener('scroll', function() {
+                    const container = this.parentElement.parentElement;
+                    container.scrollLeft = this.scrollLeft;
+                });
+            });
         };
     </script>
 </body>
