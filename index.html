@@ -7,22 +7,44 @@
     <style>
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         body { 
-            font-family: Arial, sans-serif; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0; 
-            padding: 10px; 
-            background: #f5f5f5; 
-            height: 100vh;
-            overflow: hidden;
+            padding: 20px; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
         }
         
         .editor-container { 
             display: flex; 
             flex-direction: column;
-            gap: 10px; 
-            height: calc(100vh - 150px);
+            gap: 20px; 
+            height: calc(100vh - 180px);
         }
         
         @media (min-width: 768px) {
@@ -38,6 +60,10 @@
             flex-direction: column;
             height: 100%;
             overflow: hidden;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 15px;
         }
         
         .code-container {
@@ -47,15 +73,15 @@
             min-height: 0;
             overflow: hidden;
             position: relative;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
         }
         
         .code-box-container {
             position: relative;
             flex: 1;
             overflow: auto;
-            background: #f8f8f8;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            background: #f8f9fa;
         }
         
         .code-box-wrapper {
@@ -67,9 +93,9 @@
         .code-box { 
             width: auto;
             min-width: 100%;
-            min-height: 100px;
-            font-family: 'Courier New', monospace; 
-            padding: 8px 8px 8px 48px; 
+            min-height: 200px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+            padding: 15px 15px 15px 50px; 
             border: none;
             background: transparent; 
             resize: none;
@@ -82,20 +108,21 @@
             font-size: 14px;
             position: relative;
             left: 0;
+            color: #2c3e50;
         }
         
         .line-numbers {
             position: absolute;
             left: 0;
             top: 0;
-            width: 40px;
+            width: 45px;
             height: 100%;
-            padding: 8px 4px;
-            border-right: 1px solid #ddd;
-            background-color: #eee;
+            padding: 15px 5px;
+            border-right: 1px solid #e1e8ed;
+            background-color: #f1f3f4;
             text-align: right;
-            font-family: 'Courier New', monospace;
-            color: #666;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            color: #7f8c8d;
             overflow: hidden;
             user-select: none;
             font-size: 14px;
@@ -104,51 +131,58 @@
         
         .error-marker {
             position: absolute;
-            background-color: rgba(255, 0, 0, 0.3);
-            border-left: 3px solid red;
+            background-color: rgba(231, 76, 60, 0.2);
+            border-left: 3px solid #e74c3c;
             pointer-events: none;
             z-index: 10;
         }
         
         .error-line {
-            background-color: rgba(255, 200, 200, 0.7);
+            background-color: rgba(231, 76, 60, 0.1);
         }
         
         .warning-marker {
             position: absolute;
-            background-color: rgba(255, 165, 0, 0.3);
-            border-left: 3px solid orange;
+            background-color: rgba(243, 156, 18, 0.2);
+            border-left: 3px solid #f39c12;
             pointer-events: none;
             z-index: 9;
         }
         
         .warning-line {
-            background-color: rgba(255, 220, 180, 0.7);
+            background-color: rgba(243, 156, 18, 0.1);
         }
         
         .button-group { 
             display: flex; 
-            gap: 5px; 
-            margin: 5px 0; 
+            gap: 10px; 
+            margin: 15px 0; 
             flex-wrap: wrap;
         }
         
         button { 
-            padding: 8px 16px; 
+            padding: 10px 16px; 
             border: none; 
-            border-radius: 4px; 
+            border-radius: 6px; 
             cursor: pointer;
             flex: 1;
-            min-width: 80px;
+            min-width: 100px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
         
-        .run-btn { background: #0078d4; color: white; }
-        .stop-btn { background: #d40000; color: white; }
-        .reset-btn { background: #ff9500; color: white; }
-        .clear-btn { background: #555; color: white; }
-        .nav-btn { background: #5c5c5c; color: white; flex: 0.5; }
-        button:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .run-btn { background: #27ae60; color: white; }
+        .stop-btn { background: #e74c3c; color: white; }
+        .reset-btn { background: #f39c12; color: white; }
+        .clear-btn { background: #7f8c8d; color: white; }
+        .nav-btn { background: #34495e; color: white; flex: 0.5; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
         
         .output-container { 
             flex: 1;
@@ -160,74 +194,82 @@
         
         .output { 
             flex: 1;
-            border: 1px solid #ccc; 
+            border: 1px solid #e1e8ed; 
             background: white; 
-            border-radius: 4px; 
+            border-radius: 8px; 
             overflow: auto;
             position: relative;
+            padding: 15px;
         }
         
         .error { 
-            color: red; 
+            color: #e74c3c; 
             font-family: monospace; 
             white-space: pre-wrap; 
-            margin-top: 5px;
+            margin-top: 10px;
             overflow: auto;
-            max-height: 100px;
-            background: rgba(255, 200, 200, 0.3);
-            padding: 8px;
-            border-radius: 4px;
-            border-left: 3px solid red;
+            max-height: 120px;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #e74c3c;
+            font-size: 14px;
         }
         
         .tab-buttons { 
             display: flex; 
             gap: 5px; 
-            margin-bottom: 5px; 
+            margin-bottom: 15px; 
             flex-wrap: wrap;
         }
         
         .tab-button { 
-            padding: 5px 10px; 
-            background: #ddd; 
+            padding: 10px 20px; 
+            background: #ecf0f1; 
             border: none; 
-            border-radius: 4px 4px 0 0; 
+            border-radius: 6px 6px 0 0; 
             cursor: pointer; 
             flex: 1;
-            min-width: 60px;
+            min-width: 80px;
             text-align: center;
+            font-weight: 600;
+            transition: all 0.2s ease;
         }
         
-        .tab-button.active { background: #0078d4; color: white; }
+        .tab-button.active { background: #3498db; color: white; }
         .hidden { display: none; }
         
         .resizer {
-            width: 10px;
-            background: #ddd;
+            width: 12px;
+            background: #bdc3c7;
             cursor: col-resize;
-            margin: 0 5px;
-            border-radius: 3px;
+            margin: 0 10px;
+            border-radius: 6px;
             flex-shrink: 0;
+            transition: background 0.2s ease;
         }
         
-        h1, p {
-            margin: 5px 0;
+        .resizer:hover {
+            background: #95a5a6;
         }
         
         .error-panel {
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
             background: white;
-            margin-top: 10px;
+            margin-top: 15px;
             max-height: 200px;
             overflow: auto;
+            flex-shrink: 0;
         }
         
         .error-panel h4 {
             margin: 0;
-            padding: 8px;
-            background: #f0f0f0;
-            border-bottom: 1px solid #ccc;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e8ed;
+            color: #2c3e50;
+            font-size: 16px;
         }
         
         .error-list {
@@ -237,85 +279,116 @@
         }
         
         .error-item {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f3f4;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
+            transition: background 0.2s ease;
         }
         
         .error-item:hover {
-            background: #f5f5f5;
+            background: #f8f9fa;
         }
         
         .error-item.active {
-            background: #e6f3ff;
+            background: #e1f5fe;
         }
         
         .error-type {
             font-weight: bold;
             margin-right: 8px;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
         }
         
         .error-type.error {
-            color: #d40000;
+            color: #c0392b;
+            background: rgba(231, 76, 60, 0.1);
         }
         
         .error-type.warning {
-            color: #ff9500;
+            color: #d35400;
+            background: rgba(243, 156, 18, 0.1);
         }
         
         .error-location {
-            color: #666;
+            color: #7f8c8d;
             font-size: 0.9em;
         }
         
         .error-navigation {
             display: flex;
-            gap: 5px;
-            margin: 5px 0;
+            gap: 10px;
+            margin: 15px 0;
         }
         
         .current-error {
             flex: 1;
             text-align: center;
-            padding: 8px;
-            background: #f0f0f0;
-            border-radius: 4px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #2c3e50;
         }
         
         .status-bar {
             display: flex;
             justify-content: space-between;
-            padding: 5px 10px;
-            background: #eaeaea;
-            border-top: 1px solid #ccc;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e8ed;
             font-size: 0.9em;
-            color: #555;
+            color: #7f8c8d;
+            border-radius: 0 0 8px 8px;
+            margin-top: auto;
         }
         
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
             .editor-container {
                 flex-direction: column;
                 height: auto;
             }
             
             .editor-box {
-                min-height: 300px;
+                min-height: 400px;
             }
             
             .resizer {
                 width: 100%;
-                height: 10px;
+                height: 12px;
                 cursor: row-resize;
-                margin: 5px 0;
+                margin: 10px 0;
             }
+            
+            body {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        
+        .output-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+        
+        .icon {
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <h1>Advanced Offline Code Debugger</h1>
-    <p>Powerful error checking with navigation. Works completely offline!</p>
+    <div class="header">
+        <h1>Advanced Offline Code Debugger</h1>
+        <p class="subtitle">Powerful error checking with navigation. Works completely offline!</p>
+    </div>
 
     <div class="editor-container">
         <div class="editor-box">
@@ -328,110 +401,34 @@
                 <div class="code-box-container" id="html-container">
                     <div class="code-box-wrapper">
                         <div class="line-numbers" id="html-line-numbers"></div>
-                        <textarea id="html-code" class="code-box" placeholder="Enter HTML here..." spellcheck="false"><!DOCTYPE html>
-<html>
-<head>
-    <title>Test Page</title>
-</head>
-<body>
-    <div id="demo">Hello, World!</div>
-    <button onclick="testFunc()">Click me</button>
-    
-    <script>
-        // This will cause an error
-        function testFunc() {
-            console.log("Button clicked!");
-            undefinedFunction(); // This function doesn't exist
-        }
-    </script>
-</body>
-</html></textarea>
+                        <textarea id="html-code" class="code-box" placeholder="Enter HTML here..." spellcheck="false"></textarea>
                     </div>
                 </div>
                 <div class="code-box-container hidden" id="css-container">
                     <div class="code-box-wrapper">
                         <div class="line-numbers" id="css-line-numbers"></div>
-                        <textarea id="css-code" class="code-box" placeholder="Enter CSS here..." spellcheck="false">/* Sample CSS with intentional errors */
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f0f0f0;
-}
-
-#demo { 
-    color: red; 
-    font-size: 24px; 
-    text-align: center;
-    padding: 10px;
-    missing-property: test; /* This property doesn't exist */
-}
-
-.container {
-    width: 100%
-    /* Missing semicolon above and unclosed rule below */
-    background: blue
-
-.button {
-    background: #0078d4;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-}</textarea>
+                        <textarea id="css-code" class="code-box" placeholder="Enter CSS here..." spellcheck="false"></textarea>
                     </div>
                 </div>
                 <div class="code-box-container hidden" id="js-container">
                     <div class="code-box-wrapper">
                         <div class="line-numbers" id="js-line-numbers"></div>
-                        <textarea id="js-code" class="code-box" placeholder="Enter JavaScript here..." spellcheck="false">// Sample JavaScript with multiple errors
-document.addEventListener('DOMContentLoaded', function() {
-    const demo = document.getElementById("demo");
-    if (demo) {
-        demo.style.fontWeight = "bold";
-        demo.innerHTML = "Welcome to the Debugger!";
-    }
-    
-    // Syntax error - missing closing parenthesis
-    console.log("Testing";
-    
-    // Runtime error - calling undefined function
-    undefinedFunction();
-    
-    // Another error - using undefined variable
-    x = y + z;
-});
-
-// Function with issues
-function calculateTotal(price, quantity {
-    // Missing closing parenthesis above
-    total = price * quantity;
-    return total;
-}
-
-// More complex example with multiple issues
-const data = {
-    name: "Test",
-    value: 42
-;
-
-console.log(data.name;
-console.log(data.value)</textarea>
+                        <textarea id="js-code" class="code-box" placeholder="Enter JavaScript here..." spellcheck="false"></textarea>
                     </div>
                 </div>
             </div>
             
             <div class="button-group">
-                <button class="run-btn" onclick="runCode()">▶ Validate & Run</button>
-                <button class="stop-btn" onclick="stopCode()">■ Stop</button>
-                <button class="reset-btn" onclick="resetCode()">↻ Reset</button>
-                <button class="clear-btn" onclick="clearCode()">✖ Clear</button>
+                <button class="run-btn" onclick="runCode()"><span class="icon">▶</span> Validate & Run</button>
+                <button class="stop-btn" onclick="stopCode()"><span class="icon">■</span> Stop</button>
+                <button class="reset-btn" onclick="resetCode()"><span class="icon">↻</span> Reset</button>
+                <button class="clear-btn" onclick="clearCode()"><span class="icon">✖</span> Clear</button>
             </div>
             
             <div class="error-navigation">
-                <button class="nav-btn" id="prev-error" onclick="navigateError(-1)" disabled>◀ Prev</button>
+                <button class="nav-btn" id="prev-error" onclick="navigateError(-1)" disabled><span class="icon">◀</span> Prev</button>
                 <div class="current-error" id="current-error">No errors</div>
-                <button class="nav-btn" id="next-error" onclick="navigateError(1)" disabled>Next ▶</button>
+                <button class="nav-btn" id="next-error" onclick="navigateError(1)" disabled>Next <span class="icon">▶</span></button>
             </div>
             
             <div class="error-panel">
@@ -445,13 +442,15 @@ console.log(data.value)</textarea>
         <div class="resizer" id="resizer"></div>
         
         <div class="editor-box">
-            <h3>Output</h3>
+            <h3>Output Preview</h3>
             <div class="output-container">
-                <div id="output" class="output"></div>
+                <div id="output" class="output">
+                    <p>Output will appear here after running your code.</p>
+                </div>
                 <div id="error" class="error"></div>
             </div>
             <div class="status-bar">
-                <span id="status">Ready</span>
+                <span id="status">Ready to debug</span>
                 <span id="error-count">Errors: 0 | Warnings: 0</span>
             </div>
         </div>
@@ -484,22 +483,44 @@ console.log(data.value)</textarea>
             WARNING: 'warning'
         };
         
-        // Tab switching with event delegation
+        // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
+            // Set up tab switching
             document.querySelector('.tab-buttons').addEventListener('click', function(e) {
                 if (e.target.classList.contains('tab-button')) {
                     const tabName = e.target.getAttribute('data-tab');
                     showTab(tabName);
                 }
             });
+            
+            // Initialize line numbers for all editors
+            setupLineNumbers('html-code', 'html-line-numbers');
+            setupLineNumbers('css-code', 'css-line-numbers');
+            setupLineNumbers('js-code', 'js-line-numbers');
+            
+            // Set up resizer
+            setupResizers();
+            
+            // Load default code
+            resetCode();
+            
+            updateStatus("Ready to debug");
         });
         
         // Show specific tab
         function showTab(tabName) {
-            document.querySelectorAll('.code-box-container').forEach(box => box.classList.add('hidden'));
+            // Hide all code containers
+            document.querySelectorAll('.code-box-container').forEach(box => {
+                box.classList.add('hidden');
+            });
+            
+            // Show the selected container
             document.getElementById(`${tabName}-container`).classList.remove('hidden');
             
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             
             currentTab = tabName;
@@ -515,6 +536,8 @@ console.log(data.value)</textarea>
         function setupLineNumbers(textareaId, lineNumbersId) {
             const textarea = document.getElementById(textareaId);
             const lineNumbers = document.getElementById(lineNumbersId);
+            
+            if (!textarea || !lineNumbers) return;
             
             function updateLineNumbers() {
                 const lines = textarea.value.split('\n');
@@ -626,7 +649,7 @@ console.log(data.value)</textarea>
             
             // Calculate position
             const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
-            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 8;
+            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 15;
             const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth) || 1;
             
             // Scroll to the issue line (center it if possible)
@@ -641,12 +664,17 @@ console.log(data.value)</textarea>
             marker.title = message;
             marker.style.top = `${lineTop + paddingTop + borderWidth}px`;
             marker.style.height = `${lineHeight}px`;
-            marker.style.left = '40px';
+            marker.style.left = '45px';
             marker.style.right = '0';
             marker.style.position = 'absolute';
             
             container.appendChild(marker);
-            markers.push(marker);
+            
+            if (type === errorTypes.ERROR) {
+                errorMarkers.push(marker);
+            } else {
+                warningMarkers.push(marker);
+            }
             
             // Add appropriate line class
             textarea.classList.add(type === errorTypes.ERROR ? 'error-line' : 'warning-line');
@@ -894,9 +922,6 @@ console.log(data.value)</textarea>
                 
                 // Additional static analysis
                 const lines = js.split('\n');
-                let inComment = false;
-                let inString = false;
-                let stringChar = '';
                 
                 // Check for common issues
                 for (let i = 0; i < lines.length; i++) {
@@ -1011,6 +1036,7 @@ console.log(data.value)</textarea>
     <title>Test Page</title>
 </head>
 <body>
+    <h1>Welcome to the Debugger</h1>
     <div id="demo">Hello, World!</div>
     <button onclick="testFunc()">Click me</button>
     
@@ -1020,7 +1046,13 @@ console.log(data.value)</textarea>
             console.log("Button clicked!");
             undefinedFunction(); // This function doesn't exist
         }
-    </script>
+        
+        // This will work
+        function workingFunc() {
+            document.getElementById("demo").style.color = "blue";
+            console.log("Function executed successfully!");
+        }
+    <\/script>
 </body>
 </html>`;
             document.getElementById("css-code").value = `/* Sample CSS with intentional errors */
@@ -1050,6 +1082,13 @@ body {
     border: none;
     padding: 10px 20px;
     border-radius: 4px;
+}
+
+/* This rule is correct */
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 20px;
 }`;
             document.getElementById("js-code").value = `// Sample JavaScript with multiple errors
 document.addEventListener('DOMContentLoaded', function() {
@@ -1083,7 +1122,13 @@ const data = {
 ;
 
 console.log(data.name;
-console.log(data.value)`;
+console.log(data.value)
+
+// This function works correctly
+function correctFunction() {
+    console.log("This function works properly!");
+    return true;
+}`;
             clearCode();
             updateAllLineNumbers();
         }
@@ -1091,7 +1136,7 @@ console.log(data.value)`;
         // Clear output and errors
         function clearCode() {
             stopCode();
-            document.getElementById("output").innerHTML = "";
+            document.getElementById("output").innerHTML = "<p>Output will appear here after running your code.</p>";
             document.getElementById("error").textContent = "";
             clearAllMarkers();
             allErrors = [];
@@ -1100,14 +1145,15 @@ console.log(data.value)`;
             currentTabErrorIndex = { html: -1, css: -1, js: -1 };
             updateErrorNavigation();
             updateErrorSummary();
+            updateErrorCount();
             updateStatus("Cleared");
         }
         
         // Update all line numbers
         function updateAllLineNumbers() {
-            setupLineNumbers('html-code', 'html-line-numbers');
-            setupLineNumbers('css-code', 'css-line-numbers');
-            setupLineNumbers('js-code', 'js-line-numbers');
+            updateLineNumbers('html-code', 'html-line-numbers');
+            updateLineNumbers('css-code', 'css-line-numbers');
+            updateLineNumbers('js-code', 'js-line-numbers');
         }
         
         // Update status bar
@@ -1296,10 +1342,9 @@ console.log(data.value)`;
             
             // Create new iframe for output
             currentIframe = document.createElement("iframe");
-            currentIframe.style.width = "100%";
-            currentIframe.style.height = "100%";
-            currentIframe.style.border = "none";
+            currentIframe.className = "output-frame";
             currentIframe.sandbox = "allow-scripts allow-same-origin";
+            output.innerHTML = "";
             output.appendChild(currentIframe);
             
             const iframeDoc = currentIframe.contentDocument || currentIframe.contentWindow.document;
@@ -1314,6 +1359,8 @@ console.log(data.value)`;
                     <!DOCTYPE html>
                     <html>
                         <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
                             <style>${css}</style>
                         </head>
                         <body>${html}
@@ -1371,7 +1418,7 @@ console.log(data.value)`;
         // Listen for runtime errors from iframe
         window.addEventListener('message', function(event) {
             // Check if this message is from our iframe
-            if (currentIframe && event.data.iframeId === currentIframe.dataset.iframeId) {
+            if (currentIframe && event.data && event.data.iframeId === currentIframe.dataset.iframeId) {
                 const errorInfo = event.data;
                 
                 const error = {
@@ -1458,39 +1505,6 @@ console.log(data.value)`;
                 isResizing = false;
             });
         }
-        
-        // Initialize
-        window.onload = function() {
-            setupResizers();
-            updateAllLineNumbers();
-            
-            // Setup line numbers for all editors with improved performance
-            const codeEditors = ['html-code', 'css-code', 'js-code'];
-            codeEditors.forEach(editorId => {
-                const editor = document.getElementById(editorId);
-                if (editor) {
-                    // Use a single debounced function for all editors
-                    let timeout;
-                    editor.addEventListener('input', () => {
-                        clearTimeout(timeout);
-                        timeout = setTimeout(() => {
-                            const lineNumbersId = editorId.replace('-code', '-line-numbers');
-                            updateLineNumbers(editorId, lineNumbersId);
-                        }, 150);
-                    });
-                    
-                    // Improved horizontal scrolling
-                    editor.addEventListener('scroll', function() {
-                        const lineNumbers = document.getElementById(editorId.replace('-code', '-line-numbers'));
-                        if (lineNumbers) {
-                            lineNumbers.scrollTop = this.scrollTop;
-                        }
-                    });
-                }
-            });
-            
-            updateStatus("Ready");
-        };
     </script>
 </body>
 </html>
