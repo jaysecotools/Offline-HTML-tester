@@ -3,22 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline Code Playground</title>
+    <title>Advanced Offline Code Debugger</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body { 
             font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 10px; 
             background: #f5f5f5; 
             height: 100vh;
-            box-sizing: border-box;
+            overflow: hidden;
         }
+        
         .editor-container { 
             display: flex; 
-            flex-wrap: wrap; 
+            flex-direction: column;
             gap: 10px; 
-            height: calc(100vh - 120px);
+            height: calc(100vh - 150px);
         }
+        
+        @media (min-width: 768px) {
+            .editor-container {
+                flex-direction: row;
+            }
+        }
+        
         .editor-box { 
             flex: 1; 
             min-width: 300px; 
@@ -27,6 +39,7 @@
             height: 100%;
             overflow: hidden;
         }
+        
         .code-container {
             flex: 1;
             display: flex;
@@ -35,6 +48,7 @@
             overflow: hidden;
             position: relative;
         }
+        
         .code-box-container {
             position: relative;
             flex: 1;
@@ -43,27 +57,38 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+        
+        .code-box-wrapper {
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+        
         .code-box { 
             width: auto;
             min-width: 100%;
             min-height: 100px;
             font-family: 'Courier New', monospace; 
-            padding: 8px; 
+            padding: 8px 8px 8px 48px; 
             border: none;
             background: transparent; 
             resize: none;
             overflow-y: auto;
-            box-sizing: border-box;
+            overflow-x: auto;
             line-height: 1.5;
             tab-size: 4;
             white-space: pre;
             outline: none;
+            font-size: 14px;
+            position: relative;
+            left: 0;
         }
+        
         .line-numbers {
-            position: sticky;
+            position: absolute;
             left: 0;
             top: 0;
-            width: 30px;
+            width: 40px;
             height: 100%;
             padding: 8px 4px;
             border-right: 1px solid #ddd;
@@ -73,12 +98,10 @@
             color: #666;
             overflow: hidden;
             user-select: none;
-            float: left;
+            font-size: 14px;
+            z-index: 1;
         }
-        .code-content {
-            display: flex;
-            min-width: 100%;
-        }
+        
         .error-marker {
             position: absolute;
             background-color: rgba(255, 0, 0, 0.3);
@@ -86,15 +109,30 @@
             pointer-events: none;
             z-index: 10;
         }
+        
         .error-line {
             background-color: rgba(255, 200, 200, 0.7);
         }
+        
+        .warning-marker {
+            position: absolute;
+            background-color: rgba(255, 165, 0, 0.3);
+            border-left: 3px solid orange;
+            pointer-events: none;
+            z-index: 9;
+        }
+        
+        .warning-line {
+            background-color: rgba(255, 220, 180, 0.7);
+        }
+        
         .button-group { 
             display: flex; 
             gap: 5px; 
             margin: 5px 0; 
             flex-wrap: wrap;
         }
+        
         button { 
             padding: 8px 16px; 
             border: none; 
@@ -103,11 +141,15 @@
             flex: 1;
             min-width: 80px;
         }
+        
         .run-btn { background: #0078d4; color: white; }
         .stop-btn { background: #d40000; color: white; }
         .reset-btn { background: #ff9500; color: white; }
         .clear-btn { background: #555; color: white; }
+        .nav-btn { background: #5c5c5c; color: white; flex: 0.5; }
         button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .output-container { 
             flex: 1;
             display: flex;
@@ -115,14 +157,16 @@
             min-height: 0;
             overflow: hidden;
         }
+        
         .output { 
             flex: 1;
             border: 1px solid #ccc; 
-            padding: 10px; 
             background: white; 
             border-radius: 4px; 
             overflow: auto;
+            position: relative;
         }
+        
         .error { 
             color: red; 
             font-family: monospace; 
@@ -135,12 +179,14 @@
             border-radius: 4px;
             border-left: 3px solid red;
         }
+        
         .tab-buttons { 
             display: flex; 
             gap: 5px; 
             margin-bottom: 5px; 
             flex-wrap: wrap;
         }
+        
         .tab-button { 
             padding: 5px 10px; 
             background: #ddd; 
@@ -151,62 +197,252 @@
             min-width: 60px;
             text-align: center;
         }
+        
         .tab-button.active { background: #0078d4; color: white; }
         .hidden { display: none; }
+        
         .resizer {
-            height: 10px;
+            width: 10px;
             background: #ddd;
-            cursor: row-resize;
-            margin: 5px 0;
+            cursor: col-resize;
+            margin: 0 5px;
             border-radius: 3px;
+            flex-shrink: 0;
         }
+        
         h1, p {
             margin: 5px 0;
+        }
+        
+        .error-panel {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow: auto;
+        }
+        
+        .error-panel h4 {
+            margin: 0;
+            padding: 8px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+        }
+        
+        .error-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .error-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .error-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .error-item.active {
+            background: #e6f3ff;
+        }
+        
+        .error-type {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .error-type.error {
+            color: #d40000;
+        }
+        
+        .error-type.warning {
+            color: #ff9500;
+        }
+        
+        .error-location {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .error-navigation {
+            display: flex;
+            gap: 5px;
+            margin: 5px 0;
+        }
+        
+        .current-error {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            background: #eaeaea;
+            border-top: 1px solid #ccc;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        @media (max-width: 480px) {
+            .editor-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .editor-box {
+                min-height: 300px;
+            }
+            
+            .resizer {
+                width: 100%;
+                height: 10px;
+                cursor: row-resize;
+                margin: 5px 0;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Offline Code Playground</h1>
-    <p>Test HTML/CSS/JS with error checking. Works without DevTools!</p>
+    <h1>Advanced Offline Code Debugger</h1>
+    <p>Powerful error checking with navigation. Works completely offline!</p>
 
     <div class="editor-container">
         <div class="editor-box">
             <div class="tab-buttons">
-                <button class="tab-button active" onclick="showTab('html')">HTML</button>
-                <button class="tab-button" onclick="showTab('css')">CSS</button>
-                <button class="tab-button" onclick="showTab('js')">JavaScript</button>
+                <button class="tab-button active" data-tab="html">HTML</button>
+                <button class="tab-button" data-tab="css">CSS</button>
+                <button class="tab-button" data-tab="js">JavaScript</button>
             </div>
             <div class="code-container">
                 <div class="code-box-container" id="html-container">
-                    <div class="code-content">
+                    <div class="code-box-wrapper">
                         <div class="line-numbers" id="html-line-numbers"></div>
-                        <textarea id="html-code" class="code-box" placeholder="Enter HTML here..." spellcheck="false"><div id="demo">Hello, World!</div></textarea>
+                        <textarea id="html-code" class="code-box" placeholder="Enter HTML here..." spellcheck="false"><!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <div id="demo">Hello, World!</div>
+    <button onclick="testFunc()">Click me</button>
+    
+    <script>
+        // This will cause an error
+        function testFunc() {
+            console.log("Button clicked!");
+            undefinedFunction(); // This function doesn't exist
+        }
+    </script>
+</body>
+</html></textarea>
                     </div>
                 </div>
                 <div class="code-box-container hidden" id="css-container">
-                    <div class="code-content">
+                    <div class="code-box-wrapper">
                         <div class="line-numbers" id="css-line-numbers"></div>
-                        <textarea id="css-code" class="code-box" placeholder="Enter CSS here..." spellcheck="false">#demo { color: red; font-size: 24px; }</textarea>
+                        <textarea id="css-code" class="code-box" placeholder="Enter CSS here..." spellcheck="false">/* Sample CSS with intentional errors */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+#demo { 
+    color: red; 
+    font-size: 24px; 
+    text-align: center;
+    padding: 10px;
+    missing-property: test; /* This property doesn't exist */
+}
+
+.container {
+    width: 100%
+    /* Missing semicolon above and unclosed rule below */
+    background: blue
+
+.button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+}</textarea>
                     </div>
                 </div>
                 <div class="code-box-container hidden" id="js-container">
-                    <div class="code-content">
+                    <div class="code-box-wrapper">
                         <div class="line-numbers" id="js-line-numbers"></div>
-                        <textarea id="js-code" class="code-box" placeholder="Enter JavaScript here..." spellcheck="false">document.addEventListener('DOMContentLoaded', function() {
+                        <textarea id="js-code" class="code-box" placeholder="Enter JavaScript here..." spellcheck="false">// Sample JavaScript with multiple errors
+document.addEventListener('DOMContentLoaded', function() {
     const demo = document.getElementById("demo");
-    if (demo) demo.style.fontWeight = "bold";
-});</textarea>
+    if (demo) {
+        demo.style.fontWeight = "bold";
+        demo.innerHTML = "Welcome to the Debugger!";
+    }
+    
+    // Syntax error - missing closing parenthesis
+    console.log("Testing";
+    
+    // Runtime error - calling undefined function
+    undefinedFunction();
+    
+    // Another error - using undefined variable
+    x = y + z;
+});
+
+// Function with issues
+function calculateTotal(price, quantity {
+    // Missing closing parenthesis above
+    total = price * quantity;
+    return total;
+}
+
+// More complex example with multiple issues
+const data = {
+    name: "Test",
+    value: 42
+;
+
+console.log(data.name;
+console.log(data.value)</textarea>
                     </div>
                 </div>
             </div>
             
             <div class="button-group">
-                <button class="run-btn" onclick="runCode()">▶ Run</button>
+                <button class="run-btn" onclick="runCode()">▶ Validate & Run</button>
                 <button class="stop-btn" onclick="stopCode()">■ Stop</button>
                 <button class="reset-btn" onclick="resetCode()">↻ Reset</button>
                 <button class="clear-btn" onclick="clearCode()">✖ Clear</button>
             </div>
+            
+            <div class="error-navigation">
+                <button class="nav-btn" id="prev-error" onclick="navigateError(-1)" disabled>◀ Prev</button>
+                <div class="current-error" id="current-error">No errors</div>
+                <button class="nav-btn" id="next-error" onclick="navigateError(1)" disabled>Next ▶</button>
+            </div>
+            
+            <div class="error-panel">
+                <h4>Error Summary</h4>
+                <ul class="error-list" id="error-list">
+                    <li class="error-item">No errors found</li>
+                </ul>
+            </div>
         </div>
+        
+        <div class="resizer" id="resizer"></div>
         
         <div class="editor-box">
             <h3>Output</h3>
@@ -214,14 +450,68 @@
                 <div id="output" class="output"></div>
                 <div id="error" class="error"></div>
             </div>
+            <div class="status-bar">
+                <span id="status">Ready</span>
+                <span id="error-count">Errors: 0 | Warnings: 0</span>
+            </div>
         </div>
     </div>
 
     <script>
+        // Global state
         let currentIframe = null;
         let errorMarkers = [];
+        let warningMarkers = [];
+        let allErrors = [];
+        let currentErrorIndex = -1;
+        let resizeTimeout;
+        let currentTab = 'html';
+        let scrollSyncRaf = null;
+        let tabErrors = {
+            html: [],
+            css: [],
+            js: []
+        };
+        let currentTabErrorIndex = {
+            html: -1,
+            css: -1,
+            js: -1
+        };
         
-        // Initialize line numbers
+        // Enhanced error storage
+        const errorTypes = {
+            ERROR: 'error',
+            WARNING: 'warning'
+        };
+        
+        // Tab switching with event delegation
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.tab-buttons').addEventListener('click', function(e) {
+                if (e.target.classList.contains('tab-button')) {
+                    const tabName = e.target.getAttribute('data-tab');
+                    showTab(tabName);
+                }
+            });
+        });
+        
+        // Show specific tab
+        function showTab(tabName) {
+            document.querySelectorAll('.code-box-container').forEach(box => box.classList.add('hidden'));
+            document.getElementById(`${tabName}-container`).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Update line numbers for the active tab
+            updateLineNumbers(`${tabName}-code`, `${tabName}-line-numbers`);
+            
+            // Update error navigation for current tab
+            updateErrorNavigation();
+        }
+        
+        // Initialize line numbers with debouncing
         function setupLineNumbers(textareaId, lineNumbersId) {
             const textarea = document.getElementById(textareaId);
             const lineNumbers = document.getElementById(lineNumbersId);
@@ -241,95 +531,139 @@
                 lineNumbers.style.height = textarea.scrollHeight + 'px';
             }
             
-            textarea.addEventListener('input', updateLineNumbers);
+            // Debounced update to improve performance
+            textarea.addEventListener('input', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(updateLineNumbers, 100);
+            });
+            
+            // Improved scroll synchronization with RAF
             textarea.addEventListener('scroll', () => {
-                lineNumbers.style.transform = `translateY(-${textarea.scrollTop}px)`;
+                if (scrollSyncRaf) {
+                    cancelAnimationFrame(scrollSyncRaf);
+                }
+                scrollSyncRaf = requestAnimationFrame(() => {
+                    lineNumbers.scrollTop = textarea.scrollTop;
+                });
+            });
+            
+            // Handle tab key for indentation with proper selection preservation
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    
+                    // Insert 4 spaces
+                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                    
+                    // Move cursor to after the inserted spaces
+                    this.selectionStart = this.selectionEnd = start + 4;
+                    
+                    // Trigger input event for line numbers
+                    this.dispatchEvent(new Event('input', { bubbles: true }));
+                }
             });
             
             // Initial setup
             updateLineNumbers();
         }
         
-        // Clear all error markers
-        function clearErrorMarkers() {
+        // Update specific line numbers
+        function updateLineNumbers(textareaId, lineNumbersId) {
+            const textarea = document.getElementById(textareaId);
+            const lineNumbers = document.getElementById(lineNumbersId);
+            
+            if (textarea && lineNumbers) {
+                const lines = textarea.value.split('\n');
+                lineNumbers.innerHTML = '';
+                
+                for (let i = 1; i <= lines.length; i++) {
+                    const lineNumber = document.createElement('div');
+                    lineNumber.textContent = i;
+                    lineNumbers.appendChild(lineNumber);
+                }
+                
+                lineNumbers.style.height = textarea.scrollHeight + 'px';
+            }
+        }
+        
+        // Clear all error and warning markers
+        function clearAllMarkers() {
             errorMarkers.forEach(marker => marker.remove());
             errorMarkers = [];
+            warningMarkers.forEach(marker => marker.remove());
+            warningMarkers = [];
+            
             document.querySelectorAll('.code-box').forEach(box => {
                 box.classList.remove('error-line');
+                box.classList.remove('warning-line');
             });
         }
         
-        // Highlight error line
-        function highlightError(textareaId, line, message) {
+        // Highlight error or warning line
+        function highlightIssue(textareaId, line, message, type = errorTypes.ERROR) {
             const textarea = document.getElementById(textareaId);
+            const container = textarea.parentElement;
+            
+            if (!textarea || !container) return;
+            
             const lines = textarea.value.split('\n');
             
             if (line < 1 || line > lines.length) return;
             
-            // Remove any existing error class
-            textarea.classList.remove('error-line');
-            
-            // Create error marker
-            const container = textarea.parentElement.parentElement;
+            // Remove any existing error/warning classes
+            textarea.classList.remove('error-line', 'warning-line');
             
             // Clear existing markers for this textarea
-            errorMarkers.forEach((marker, index) => {
+            const markers = type === errorTypes.ERROR ? errorMarkers : warningMarkers;
+            markers.forEach((marker, index) => {
                 if (marker.parentElement === container) {
                     marker.remove();
-                    errorMarkers.splice(index, 1);
+                    markers.splice(index, 1);
                 }
             });
             
             // Calculate position
-            const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
-            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop);
-            const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth);
+            const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
+            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 8;
+            const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth) || 1;
             
-            // Highlight the line in the textarea
-            const startPos = textarea.value.split('\n').slice(0, line - 1).join('\n').length + (line > 1 ? 1 : 0);
-            const endPos = startPos + lines[line - 1].length;
-            
-            // Scroll to the error line
-            const scrollTo = (line - 3) * lineHeight;
-            textarea.scrollTop = Math.max(0, scrollTo);
+            // Scroll to the issue line (center it if possible)
+            const lineTop = (line - 1) * lineHeight;
+            const textareaHeight = textarea.clientHeight;
+            textarea.scrollTop = Math.max(0, lineTop - textareaHeight / 2 + lineHeight);
             textarea.focus();
             
             // Create marker
             const marker = document.createElement('div');
-            marker.className = 'error-marker';
+            marker.className = type === errorTypes.ERROR ? 'error-marker' : 'warning-marker';
             marker.title = message;
-            marker.style.top = `${(line - 1) * lineHeight + paddingTop + borderWidth}px`;
+            marker.style.top = `${lineTop + paddingTop + borderWidth}px`;
             marker.style.height = `${lineHeight}px`;
-            marker.style.left = '30px';
+            marker.style.left = '40px';
             marker.style.right = '0';
+            marker.style.position = 'absolute';
             
             container.appendChild(marker);
-            errorMarkers.push(marker);
+            markers.push(marker);
             
-            // Add error line class
-            textarea.classList.add('error-line');
+            // Add appropriate line class
+            textarea.classList.add(type === errorTypes.ERROR ? 'error-line' : 'warning-line');
         }
         
-        // Tab switching
-        function showTab(tabName) {
-            document.querySelectorAll('.code-box-container').forEach(box => box.classList.add('hidden'));
-            document.getElementById(`${tabName}-container`).classList.remove('hidden');
-            
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-        }
-
-        // Validate HTML with line numbers
+        // Enhanced HTML validation with multiple error detection
         function validateHTML(html) {
-            if (!html.trim()) return null;
+            const errors = [];
+            if (!html.trim()) return errors;
             
             try {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
-                const errors = Array.from(doc.querySelectorAll('parsererror'));
+                const parserErrors = Array.from(doc.querySelectorAll('parsererror'));
                 
-                if (errors.length > 0) {
-                    // Improved error parsing for HTML
-                    const errorMsg = errors[0].textContent;
+                if (parserErrors.length > 0) {
+                    // Parse multiple errors from parsererror
+                    const errorMsg = parserErrors[0].textContent;
                     let line = 1;
                     
                     // Try different patterns to extract line number
@@ -344,109 +678,318 @@
                                           .replace(/Location: .*/, '')
                                           .trim();
                     
-                    highlightError('html-code', line, `HTML Error: ${cleanMsg}`);
-                    return `HTML Error on line ${line}: ${cleanMsg}`;
+                    errors.push({
+                        type: errorTypes.ERROR,
+                        message: cleanMsg,
+                        line: line,
+                        tab: 'html'
+                    });
                 }
                 
                 // Additional checks for common HTML issues
                 const lines = html.split('\n');
+                let openTags = [];
+                
                 for (let i = 0; i < lines.length; i++) {
                     const lineText = lines[i];
+                    const lineNum = i + 1;
                     
-                    // Check for unclosed tags (simple check)
-                    if (lineText.includes('<')) {
-                        const openTags = lineText.match(/<([a-z][a-z0-9]*)(?![^>]*\/>)/gi) || [];
-                        const closeTags = lineText.match(/<\/([a-z][a-z0-9]*)>/gi) || [];
+                    // Check for unclosed tags
+                    const tagMatches = lineText.matchAll(/<(\/?)([a-z][a-z0-9]*)(?![^>]*\/>)[^>]*>/gi);
+                    for (const match of tagMatches) {
+                        const isClosing = match[1] === '/';
+                        const tagName = match[2].toLowerCase();
                         
-                        // Simple unbalanced tag check
-                        if (openTags.length !== closeTags.length) {
-                            highlightError('html-code', i + 1, "Possible unclosed tag");
-                            return `HTML Warning on line ${i + 1}: Possible unclosed tag`;
+                        if (!isClosing && !['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tagName)) {
+                            openTags.push({tag: tagName, line: lineNum});
+                        } else if (isClosing) {
+                            const lastOpenTag = openTags.pop();
+                            if (!lastOpenTag || lastOpenTag.tag !== tagName) {
+                                errors.push({
+                                    type: errorTypes.ERROR,
+                                    message: `Mismatched tag: </${tagName}>`,
+                                    line: lineNum,
+                                    tab: 'html'
+                                });
+                            }
                         }
+                    }
+                    
+                    // Check for common typos
+                    if (lineText.includes('scrpt') || lineText.includes('scrip')) {
+                        errors.push({
+                            type: errorTypes.WARNING,
+                            message: "Possible typo: 'scrpt' should be 'script'",
+                            line: lineNum,
+                            tab: 'html'
+                        });
+                    }
+                    
+                    if (lineText.includes('div') && lineText.includes('calss=')) {
+                        errors.push({
+                            type: errorTypes.WARNING,
+                            message: "Possible typo: 'calss' should be 'class'",
+                            line: lineNum,
+                            tab: 'html'
+                        });
                     }
                 }
                 
-                return null;
+                // Check for unclosed tags
+                if (openTags.length > 0) {
+                    openTags.forEach(tagInfo => {
+                        errors.push({
+                            type: errorTypes.ERROR,
+                            message: `Unclosed <${tagInfo.tag}> tag`,
+                            line: tagInfo.line,
+                            tab: 'html'
+                        });
+                    });
+                }
+                
+                return errors;
             } catch (err) {
-                return `HTML Error: ${err.message}`;
+                errors.push({
+                    type: errorTypes.ERROR,
+                    message: err.message,
+                    line: 1,
+                    tab: 'html'
+                });
+                return errors;
             }
         }
 
-        // Validate CSS with line numbers
+        // Enhanced CSS validation with multiple error detection
         function validateCSS(css) {
-            if (!css.trim()) return null;
+            const errors = [];
+            if (!css.trim()) return errors;
             
             try {
-                // First try the simple validation
-                const style = document.createElement('style');
-                style.textContent = css;
-                document.head.appendChild(style);
-                document.head.removeChild(style);
-                
-                // Additional CSS parsing for better error detection
+                // Advanced parsing for better error detection
                 const lines = css.split('\n');
-                let inRule = false;
                 let braceCount = 0;
+                let inRule = false;
+                let currentRuleStart = 0;
+                let inComment = false;
                 
                 for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
+                    let line = lines[i];
                     const trimmed = line.trim();
+                    const lineNum = i + 1;
+                    
+                    // Handle block comments
+                    if (inComment) {
+                        if (line.includes('*/')) {
+                            inComment = false;
+                            line = line.substring(line.indexOf('*/') + 2);
+                        } else {
+                            continue; // Skip lines inside block comments
+                        }
+                    }
+                    
+                    // Check for block comment start
+                    if (line.includes('/*')) {
+                        inComment = true;
+                        if (line.includes('*/')) {
+                            inComment = false;
+                            line = line.substring(0, line.indexOf('/*')) + line.substring(line.indexOf('*/') + 2);
+                        } else {
+                            line = line.substring(0, line.indexOf('/*'));
+                        }
+                    }
+                    
+                    // Skip empty lines and single-line comments
+                    if (!trimmed || trimmed.startsWith('//')) continue;
                     
                     // Check for unclosed braces
-                    const lineBraces = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
-                    braceCount += lineBraces;
+                    const openBraces = (line.match(/{/g) || []).length;
+                    const closeBraces = (line.match(/}/g) || []).length;
+                    braceCount += openBraces - closeBraces;
                     
                     // Check for syntax errors in rules
                     if (trimmed.endsWith('{') && !trimmed.startsWith('@')) {
                         const selector = trimmed.slice(0, -1).trim();
                         if (!selector) {
-                            highlightError('css-code', i + 1, "Missing selector before {");
-                            return `CSS Error on line ${i + 1}: Missing selector before {`;
+                            errors.push({
+                                type: errorTypes.ERROR,
+                                message: "Missing selector before {",
+                                line: lineNum,
+                                tab: 'css'
+                            });
                         }
+                        inRule = true;
+                        currentRuleStart = lineNum;
                     }
                     
                     // Check for property: value pairs
                     if (braceCount > 0 && trimmed && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
-                        !trimmed.startsWith('@') && !trimmed.includes(':')) {
-                        highlightError('css-code', i + 1, "Invalid CSS property");
-                        return `CSS Error on line ${i + 1}: Invalid CSS property`;
+                        !trimmed.startsWith('@') && !trimmed.includes(':') && !trimmed.startsWith('/*') && 
+                        !trimmed.endsWith('*/')) {
+                        // This might be a malformed property
+                        errors.push({
+                            type: errorTypes.WARNING,
+                            message: "Invalid CSS declaration - missing colon?",
+                            line: lineNum,
+                            tab: 'css'
+                        });
+                    }
+                    
+                    // Check for missing semicolons at end of property lines
+                    if (braceCount > 0 && trimmed && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
+                        !trimmed.startsWith('@') && trimmed.includes(':') && !trimmed.endsWith(';') && 
+                        !trimmed.includes('{') && !trimmed.includes('}') && !trimmed.startsWith('/*') && 
+                        !trimmed.endsWith('*/') && i < lines.length - 1) {
+                        const nextLine = lines[i + 1].trim();
+                        if (nextLine && !nextLine.endsWith('}') && !nextLine.startsWith('/*')) {
+                            errors.push({
+                                type: errorTypes.WARNING,
+                                message: "Missing semicolon",
+                                line: lineNum,
+                                tab: 'css'
+                            });
+                        }
+                    }
+                    
+                    // Check for rule termination
+                    if (trimmed.endsWith('}') && inRule) {
+                        inRule = false;
                     }
                 }
                 
                 if (braceCount !== 0) {
-                    highlightError('css-code', lines.length, "Unclosed CSS block");
-                    return `CSS Error: Unclosed CSS block (missing ${braceCount > 0 ? '}' : '{'})`;
+                    errors.push({
+                        type: errorTypes.ERROR,
+                        message: `Unbalanced braces (missing ${braceCount > 0 ? '}' : '{'})`,
+                        line: lines.length,
+                        tab: 'css'
+                    });
                 }
                 
-                return null;
+                return errors;
             } catch (err) {
-                // Extract line number from CSS error (works in most browsers)
+                // Extract line number from CSS error
                 let line = 1;
                 const lineMatch = err.message.match(/line (\d+)/i) || 
                                  err.stack.match(/<anonymous>:(\d+):(\d+)/i);
                 if (lineMatch) line = parseInt(lineMatch[1]);
                 
-                highlightError('css-code', line, err.message);
-                return `CSS Error on line ${line}: ${err.message.replace(/^CSS\..*?: /, '')}`;
+                errors.push({
+                    type: errorTypes.ERROR,
+                    message: err.message.replace(/^CSS\..*?: /, ''),
+                    line: line,
+                    tab: 'css'
+                });
+                return errors;
             }
         }
 
-        // Validate JS with line numbers
+        // Enhanced JS validation with multiple error detection
         function validateJS(js) {
-            if (!js.trim()) return null;
+            const errors = [];
+            if (!js.trim()) return errors;
             
             try {
-                // This just checks syntax, not execution
+                // Syntax validation
                 new Function(js);
-                return null;
+                
+                // Additional static analysis
+                const lines = js.split('\n');
+                let inComment = false;
+                let inString = false;
+                let stringChar = '';
+                
+                // Check for common issues
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+                    const lineNum = i + 1;
+                    let trimmed = line.trim();
+                    
+                    // Skip empty lines
+                    if (!trimmed) continue;
+                    
+                    // Check for assignment in condition (common typo)
+                    if (line.includes('if (') && line.includes('=') && !line.includes('==') && !line.includes('===') && 
+                        line.indexOf('=') < line.indexOf(')') && line.indexOf('=') > line.indexOf('(')) {
+                        // Make sure it's not in a string or comment
+                        if (!isInStringOrComment(line, line.indexOf('='))) {
+                            errors.push({
+                                type: errorTypes.WARNING,
+                                message: "Possible assignment in condition, use == or ===",
+                                line: lineNum,
+                                tab: 'js'
+                            });
+                        }
+                    }
+                    
+                    // Check for missing semicolons (simple heuristic)
+                    const lastChar = trimmed[trimmed.length - 1];
+                    if (lastChar && ![';', '{', '}', ')', '(', ',', '.', '=', '+', '-', '*', '/'].includes(lastChar) &&
+                        !trimmed.startsWith('//') && !trimmed.startsWith('/*') && !trimmed.endsWith('*/') &&
+                        !trimmed.startsWith('function') && !trimmed.startsWith('if') && !trimmed.startsWith('for') && 
+                        !trimmed.startsWith('while') && !trimmed.startsWith('const') && !trimmed.startsWith('let') && 
+                        !trimmed.startsWith('var') && !trimmed.startsWith('return') && !trimmed.startsWith('console')) {
+                        errors.push({
+                            type: errorTypes.WARNING,
+                            message: "Missing semicolon",
+                            line: lineNum,
+                            tab: 'js'
+                        });
+                    }
+                }
+                
+                return errors;
+                
+                // Helper function to check if position is in string or comment
+                function isInStringOrComment(text, position) {
+                    let inSingleLineComment = false;
+                    let inMultiLineComment = false;
+                    let inString = false;
+                    let stringChar = '';
+                    
+                    for (let i = 0; i < Math.min(position, text.length); i++) {
+                        const char = text[i];
+                        const nextChar = text[i + 1];
+                        
+                        if (!inSingleLineComment && !inMultiLineComment && !inString) {
+                            if (char === '/' && nextChar === '/') {
+                                inSingleLineComment = true;
+                                i++; // Skip next char
+                            } else if (char === '/' && nextChar === '*') {
+                                inMultiLineComment = true;
+                                i++; // Skip next char
+                            } else if (char === '"' || char === "'" || char === '`') {
+                                inString = true;
+                                stringChar = char;
+                            }
+                        } else if (inSingleLineComment) {
+                            // Single line comment continues to end of line
+                            // We're checking before position, so no need to break
+                        } else if (inMultiLineComment && char === '*' && nextChar === '/') {
+                            inMultiLineComment = false;
+                            i++; // Skip next char
+                        } else if (inString && char === stringChar) {
+                            // Check for escape character
+                            if (text[i - 1] !== '\\') {
+                                inString = false;
+                            }
+                        }
+                    }
+                    
+                    return inSingleLineComment || inMultiLineComment || inString;
+                }
             } catch (err) {
                 // Extract line number from JS error
                 const lineMatch = err.stack.match(/<anonymous>:(\d+):(\d+)/i) || 
                                  err.stack.match(/eval:(\d+):(\d+)/i);
                 const line = lineMatch ? parseInt(lineMatch[1]) : 1;
                 
-                highlightError('js-code', line, err.message);
-                return `JS Error on line ${line}: ${err.message}`;
+                errors.push({
+                    type: errorTypes.ERROR,
+                    message: err.message,
+                    line: line,
+                    tab: 'js'
+                });
+                return errors;
             }
         }
 
@@ -456,17 +999,91 @@
                 currentIframe.remove();
                 currentIframe = null;
                 document.getElementById("error").textContent = "Execution stopped.";
+                updateStatus("Execution stopped");
             }
         }
 
         // Reset to default code
         function resetCode() {
-            document.getElementById("html-code").value = '<div id="demo">Hello, World!</div>';
-            document.getElementById("css-code").value = '#demo { color: red; font-size: 24px; }';
-            document.getElementById("js-code").value = `document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById("html-code").value = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <div id="demo">Hello, World!</div>
+    <button onclick="testFunc()">Click me</button>
+    
+    <script>
+        // This will cause an error
+        function testFunc() {
+            console.log("Button clicked!");
+            undefinedFunction(); // This function doesn't exist
+        }
+    </script>
+</body>
+</html>`;
+            document.getElementById("css-code").value = `/* Sample CSS with intentional errors */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+#demo { 
+    color: red; 
+    font-size: 24px; 
+    text-align: center;
+    padding: 10px;
+    missing-property: test; /* This property doesn't exist */
+}
+
+.container {
+    width: 100%
+    /* Missing semicolon above and unclosed rule below */
+    background: blue
+
+.button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+}`;
+            document.getElementById("js-code").value = `// Sample JavaScript with multiple errors
+document.addEventListener('DOMContentLoaded', function() {
     const demo = document.getElementById("demo");
-    if (demo) demo.style.fontWeight = "bold";
-});`;
+    if (demo) {
+        demo.style.fontWeight = "bold";
+        demo.innerHTML = "Welcome to the Debugger!";
+    }
+    
+    // Syntax error - missing closing parenthesis
+    console.log("Testing";
+    
+    // Runtime error - calling undefined function
+    undefinedFunction();
+    
+    // Another error - using undefined variable
+    x = y + z;
+});
+
+// Function with issues
+function calculateTotal(price, quantity {
+    // Missing closing parenthesis above
+    total = price * quantity;
+    return total;
+}
+
+// More complex example with multiple issues
+const data = {
+    name: "Test",
+    value: 42
+;
+
+console.log(data.name;
+console.log(data.value)`;
             clearCode();
             updateAllLineNumbers();
         }
@@ -476,7 +1093,14 @@
             stopCode();
             document.getElementById("output").innerHTML = "";
             document.getElementById("error").textContent = "";
-            clearErrorMarkers();
+            clearAllMarkers();
+            allErrors = [];
+            currentErrorIndex = -1;
+            tabErrors = { html: [], css: [], js: [] };
+            currentTabErrorIndex = { html: -1, css: -1, js: -1 };
+            updateErrorNavigation();
+            updateErrorSummary();
+            updateStatus("Cleared");
         }
         
         // Update all line numbers
@@ -484,6 +1108,133 @@
             setupLineNumbers('html-code', 'html-line-numbers');
             setupLineNumbers('css-code', 'css-line-numbers');
             setupLineNumbers('js-code', 'js-line-numbers');
+        }
+        
+        // Update status bar
+        function updateStatus(message) {
+            document.getElementById("status").textContent = message;
+        }
+        
+        // Update error count display
+        function updateErrorCount() {
+            const errorCount = allErrors.filter(e => e.type === errorTypes.ERROR).length;
+            const warningCount = allErrors.filter(e => e.type === errorTypes.WARNING).length;
+            document.getElementById("error-count").textContent = `Errors: ${errorCount} | Warnings: ${warningCount}`;
+        }
+        
+        // Update error summary panel
+        function updateErrorSummary() {
+            const errorList = document.getElementById("error-list");
+            errorList.innerHTML = "";
+            
+            if (allErrors.length === 0) {
+                const item = document.createElement("li");
+                item.className = "error-item";
+                item.textContent = "No errors found";
+                errorList.appendChild(item);
+                return;
+            }
+            
+            allErrors.forEach((error, index) => {
+                const item = document.createElement("li");
+                item.className = `error-item ${index === currentErrorIndex ? 'active' : ''}`;
+                item.innerHTML = `
+                    <div>
+                        <span class="error-type ${error.type}">${error.type.toUpperCase()}</span>
+                        ${error.message}
+                    </div>
+                    <div class="error-location">Line ${error.line}</div>
+                `;
+                item.addEventListener("click", () => {
+                    navigateToError(index);
+                });
+                errorList.appendChild(item);
+            });
+        }
+        
+        // Update error navigation buttons
+        function updateErrorNavigation() {
+            const prevBtn = document.getElementById("prev-error");
+            const nextBtn = document.getElementById("next-error");
+            const currentErrorDisplay = document.getElementById("current-error");
+            
+            // Get errors for current tab
+            const currentTabErrors = tabErrors[currentTab] || [];
+            
+            if (currentTabErrors.length === 0) {
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                currentErrorDisplay.textContent = "No errors";
+                return;
+            }
+            
+            const currentIndex = currentTabErrorIndex[currentTab];
+            
+            prevBtn.disabled = currentIndex <= 0;
+            nextBtn.disabled = currentIndex >= currentTabErrors.length - 1;
+            
+            if (currentTabErrors.length > 0 && currentIndex >= 0) {
+                currentErrorDisplay.textContent = `Error ${currentIndex + 1} of ${currentTabErrors.length}`;
+            } else {
+                currentErrorDisplay.textContent = "No errors";
+            }
+        }
+        
+        // Navigate to specific error
+        function navigateToError(index) {
+            if (index < 0 || index >= allErrors.length) return;
+            
+            currentErrorIndex = index;
+            const error = allErrors[index];
+            
+            // Update tab-specific error index
+            const tabErrorList = tabErrors[error.tab];
+            const tabIndex = tabErrorList ? tabErrorList.findIndex(e => 
+                e.line === error.line && e.message === error.message && e.type === error.type
+            ) : -1;
+            
+            if (tabIndex !== -1) {
+                currentTabErrorIndex[error.tab] = tabIndex;
+            }
+            
+            // Switch to the correct tab
+            if (error.tab !== currentTab) {
+                showTab(error.tab);
+            }
+            
+            // Highlight the error
+            highlightIssue(`${error.tab}-code`, error.line, error.message, error.type);
+            
+            // Update navigation
+            updateErrorNavigation();
+            updateErrorSummary();
+            
+            updateStatus(`Navigated to ${error.type} on line ${error.line}`);
+        }
+        
+        // Navigate to next/previous error
+        function navigateError(direction) {
+            const currentTabErrors = tabErrors[currentTab] || [];
+            if (currentTabErrors.length === 0) return;
+            
+            let currentIndex = currentTabErrorIndex[currentTab];
+            if (currentIndex === -1) currentIndex = 0;
+            
+            // Calculate new position
+            let newIndex = currentIndex + direction;
+            if (newIndex < 0) newIndex = currentTabErrors.length - 1;
+            if (newIndex >= currentTabErrors.length) newIndex = 0;
+            
+            // Find the global index of this error
+            const error = currentTabErrors[newIndex];
+            const globalIndex = allErrors.findIndex(e => 
+                e.tab === error.tab && e.line === error.line && 
+                e.message === error.message && e.type === error.type
+            );
+            
+            if (globalIndex !== -1) {
+                navigateToError(globalIndex);
+            }
         }
 
         // Run code with full validation
@@ -497,105 +1248,214 @@
             
             // Clear previous
             stopCode();
-            clearErrorMarkers();
+            clearAllMarkers();
             errorDisplay.textContent = "";
+            allErrors = [];
+            currentErrorIndex = -1;
+            tabErrors = { html: [], css: [], js: [] };
+            currentTabErrorIndex = { html: -1, css: -1, js: -1 };
             
-            // Validate HTML
-            const htmlError = validateHTML(html);
-            if (htmlError) {
-                errorDisplay.textContent = htmlError;
+            updateStatus("Validating code...");
+            
+            // Validate all code types
+            const htmlErrors = validateHTML(html);
+            const cssErrors = validateCSS(css);
+            const jsErrors = validateJS(js);
+            
+            // Combine all errors and organize by tab
+            allErrors = [...htmlErrors, ...cssErrors, ...jsErrors];
+            tabErrors.html = htmlErrors;
+            tabErrors.css = cssErrors;
+            tabErrors.js = jsErrors;
+            
+            // Update UI with errors
+            updateErrorCount();
+            updateErrorSummary();
+            updateErrorNavigation();
+            
+            // If there are errors, show the first one
+            if (allErrors.length > 0) {
+                // Find first error for current tab, or first error overall
+                let firstErrorIndex = 0;
+                const currentTabError = tabErrors[currentTab];
+                if (currentTabError && currentTabError.length > 0) {
+                    firstErrorIndex = allErrors.findIndex(e => 
+                        e.tab === currentTabError[0].tab && 
+                        e.line === currentTabError[0].line && 
+                        e.message === currentTabError[0].message
+                    );
+                }
+                
+                navigateToError(firstErrorIndex);
+                errorDisplay.textContent = `Found ${allErrors.length} issues. Use navigation to review them.`;
+                updateStatus(`Found ${allErrors.length} issues`);
                 return;
             }
             
-            // Validate CSS
-            const cssError = validateCSS(css);
-            if (cssError) {
-                errorDisplay.textContent = cssError;
-                return;
-            }
+            updateStatus("Running code...");
             
-            // Validate JS syntax
-            const jsError = validateJS(js);
-            if (jsError) {
-                errorDisplay.textContent = jsError;
-                return;
-            }
-            
-            // Create new iframe
+            // Create new iframe for output
             currentIframe = document.createElement("iframe");
             currentIframe.style.width = "100%";
             currentIframe.style.height = "100%";
             currentIframe.style.border = "none";
+            currentIframe.sandbox = "allow-scripts allow-same-origin";
             output.appendChild(currentIframe);
             
             const iframeDoc = currentIframe.contentDocument || currentIframe.contentWindow.document;
             
             try {
+                // Generate a unique ID for this iframe for message identification
+                const iframeId = 'iframe_' + Date.now();
+                currentIframe.dataset.iframeId = iframeId;
+                
                 iframeDoc.open();
                 iframeDoc.write(`
                     <!DOCTYPE html>
                     <html>
-                        <head><style>${css}</style></head>
+                        <head>
+                            <style>${css}</style>
+                        </head>
                         <body>${html}
                             <script>
+                                // Enhanced error handling for runtime errors with postMessage
+                                window.addEventListener('error', function(e) {
+                                    const errorInfo = {
+                                        type: 'runtimeError',
+                                        iframeId: '${iframeId}',
+                                        message: e.message,
+                                        filename: e.filename,
+                                        lineno: e.lineno,
+                                        colno: e.colno,
+                                        stack: e.error?.stack
+                                    };
+                                    window.parent.postMessage(errorInfo, '*');
+                                    return false;
+                                });
+                                
+                                // Catch unhandled promise rejections
+                                window.addEventListener('unhandledrejection', function(e) {
+                                    const errorInfo = {
+                                        type: 'unhandledRejection',
+                                        iframeId: '${iframeId}',
+                                        message: "Unhandled Promise Rejection: " + e.reason,
+                                        lineno: 1
+                                    };
+                                    window.parent.postMessage(errorInfo, '*');
+                                });
+                                
                                 try {
                                     ${js}
                                 } catch (err) {
-                                    parent.displayError("JS Runtime Error on line " + (err.lineNumber || 1) + ": " + err.message);
+                                    const errorInfo = {
+                                        type: 'executionError',
+                                        iframeId: '${iframeId}',
+                                        message: err.message,
+                                        lineno: err.lineNumber || 1,
+                                        stack: err.stack
+                                    };
+                                    window.parent.postMessage(errorInfo, '*');
                                 }
                             <\/script>
                         </body>
                     </html>
                 `);
                 iframeDoc.close();
+                updateStatus("Code executed successfully");
             } catch (err) {
                 displayError("Frame Error: " + err.message);
+                updateStatus("Error executing code");
             }
         }
         
+        // Listen for runtime errors from iframe
+        window.addEventListener('message', function(event) {
+            // Check if this message is from our iframe
+            if (currentIframe && event.data.iframeId === currentIframe.dataset.iframeId) {
+                const errorInfo = event.data;
+                
+                const error = {
+                    type: errorTypes.ERROR,
+                    message: errorInfo.message,
+                    line: errorInfo.lineno || 1,
+                    tab: 'js' // Runtime errors are always from JS
+                };
+                
+                allErrors.push(error);
+                if (!tabErrors.js) tabErrors.js = [];
+                tabErrors.js.push(error);
+                
+                updateErrorCount();
+                updateErrorSummary();
+                
+                // If this is the first error, navigate to it
+                if (allErrors.length === 1) {
+                    navigateToError(0);
+                }
+                
+                document.getElementById("error").textContent = `Runtime Error: ${errorInfo.message}`;
+                updateStatus("Runtime error detected");
+            }
+        });
+        
         function displayError(err) {
             document.getElementById("error").textContent = err;
-            
-            // Try to highlight runtime JS errors
-            const jsErrorMatch = err.match(/JS Runtime Error on line (\d+):/);
-            if (jsErrorMatch) {
-                const line = parseInt(jsErrorMatch[1]);
-                highlightError('js-code', line, err);
-            }
+            updateStatus("Error detected");
         }
 
         // Make panels resizable
         function setupResizers() {
             const container = document.querySelector('.editor-container');
             const leftPanel = container.children[0];
-            const rightPanel = container.children[1];
+            const resizer = document.getElementById('resizer');
+            const rightPanel = container.children[2];
             
             let isResizing = false;
             
-            // Horizontal resizer (between panels)
-            const resizer = document.createElement('div');
-            resizer.className = 'resizer';
             resizer.addEventListener('mousedown', (e) => {
                 isResizing = true;
+                document.body.style.userSelect = 'none';
                 document.body.style.cursor = 'col-resize';
                 e.preventDefault();
             });
-            
-            container.insertBefore(resizer, rightPanel);
             
             document.addEventListener('mousemove', (e) => {
                 if (!isResizing) return;
                 
                 const containerRect = container.getBoundingClientRect();
-                const percent = (e.clientX - containerRect.left) / containerRect.width * 100;
+                const percent = Math.min(Math.max((e.clientX - containerRect.left) / containerRect.width * 100, 20), 80);
                 
-                leftPanel.style.width = `calc(${percent}% - 5px)`;
-                rightPanel.style.width = `calc(${100 - percent}% - 5px)`;
+                leftPanel.style.flex = `0 0 ${percent}%`;
+                rightPanel.style.flex = `0 0 ${100 - percent}%`;
             });
             
             document.addEventListener('mouseup', () => {
                 isResizing = false;
+                document.body.style.userSelect = '';
                 document.body.style.cursor = '';
+            });
+            
+            // Handle touch events for mobile
+            resizer.addEventListener('touchstart', (e) => {
+                isResizing = true;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!isResizing) return;
+                
+                const touch = e.touches[0];
+                const containerRect = container.getBoundingClientRect();
+                const percent = Math.min(Math.max((touch.clientX - containerRect.left) / containerRect.width * 100, 20), 80);
+                
+                leftPanel.style.flex = `0 0 ${percent}%`;
+                rightPanel.style.flex = `0 0 ${100 - percent}%`;
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('touchend', () => {
+                isResizing = false;
             });
         }
         
@@ -603,26 +1463,33 @@
         window.onload = function() {
             setupResizers();
             updateAllLineNumbers();
-            runCode();
             
-            // Setup line numbers for all editors
-            document.getElementById('html-code').addEventListener('input', () => {
-                setupLineNumbers('html-code', 'html-line-numbers');
-            });
-            document.getElementById('css-code').addEventListener('input', () => {
-                setupLineNumbers('css-code', 'css-line-numbers');
-            });
-            document.getElementById('js-code').addEventListener('input', () => {
-                setupLineNumbers('js-code', 'js-line-numbers');
+            // Setup line numbers for all editors with improved performance
+            const codeEditors = ['html-code', 'css-code', 'js-code'];
+            codeEditors.forEach(editorId => {
+                const editor = document.getElementById(editorId);
+                if (editor) {
+                    // Use a single debounced function for all editors
+                    let timeout;
+                    editor.addEventListener('input', () => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            const lineNumbersId = editorId.replace('-code', '-line-numbers');
+                            updateLineNumbers(editorId, lineNumbersId);
+                        }, 150);
+                    });
+                    
+                    // Improved horizontal scrolling
+                    editor.addEventListener('scroll', function() {
+                        const lineNumbers = document.getElementById(editorId.replace('-code', '-line-numbers'));
+                        if (lineNumbers) {
+                            lineNumbers.scrollTop = this.scrollTop;
+                        }
+                    });
+                }
             });
             
-            // Ensure proper horizontal scrolling
-            document.querySelectorAll('.code-box').forEach(textarea => {
-                textarea.addEventListener('scroll', function() {
-                    const container = this.parentElement.parentElement;
-                    container.scrollLeft = this.scrollLeft;
-                });
-            });
+            updateStatus("Ready");
         };
     </script>
 </body>
