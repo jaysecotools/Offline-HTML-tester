@@ -382,6 +382,19 @@
         .icon {
             font-size: 16px;
         }
+        
+        /* Accessibility improvements */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
     </style>
 </head>
 <body>
@@ -391,7 +404,8 @@
     </div>
 
     <div class="editor-container">
-        <div class="editor-box">
+        <div class="editor-box" role="region" aria-labelledby="editor-title">
+            <h3 id="editor-title" class="visually-hidden">Code Editor</h3>
             <div class="tab-buttons">
                 <button class="tab-button active" data-tab="html">HTML</button>
                 <button class="tab-button" data-tab="css">CSS</button>
@@ -441,8 +455,8 @@
         
         <div class="resizer" id="resizer"></div>
         
-        <div class="editor-box">
-            <h3>Output Preview</h3>
+        <div class="editor-box" role="region" aria-labelledby="output-title">
+            <h3 id="output-title">Output Preview</h3>
             <div class="output-container">
                 <div id="output" class="output">
                     <p>Output will appear here after running your code.</p>
@@ -501,11 +515,27 @@
             // Set up resizer
             setupResizers();
             
+            // Set up global error handling
+            setupGlobalErrorHandling();
+            
             // Load default code
             resetCode();
             
             updateStatus("Ready to debug");
         });
+        
+        // Enhanced global error handling
+        function setupGlobalErrorHandling() {
+            window.addEventListener('error', function(e) {
+                console.error('Global error:', e.error);
+                updateStatus('Unexpected error occurred');
+            });
+            
+            window.addEventListener('unhandledrejection', function(e) {
+                console.error('Unhandled promise rejection:', e.reason);
+                updateStatus('Unhandled promise rejection');
+            });
+        }
         
         // Show specific tab
         function showTab(tabName) {
@@ -570,20 +600,34 @@
                 });
             });
             
-            // Handle tab key for indentation with proper selection preservation
+            // Enhanced tab key handler with multi-line support
             textarea.addEventListener('keydown', function(e) {
                 if (e.key === 'Tab') {
                     e.preventDefault();
                     const start = this.selectionStart;
                     const end = this.selectionEnd;
+                    const value = this.value;
                     
-                    // Insert 4 spaces
-                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                    // Handle multi-line selection
+                    if (start !== end) {
+                        const linesBefore = value.substring(0, start).split('\n');
+                        const linesAfter = value.substring(end).split('\n');
+                        const selectedText = value.substring(start, end);
+                        const selectedLines = selectedText.split('\n');
+                        
+                        // Indent all selected lines
+                        const indentedLines = selectedLines.map(line => '    ' + line);
+                        const newText = indentedLines.join('\n');
+                        
+                        this.value = value.substring(0, start) + newText + value.substring(end);
+                        this.selectionStart = start;
+                        this.selectionEnd = start + newText.length;
+                    } else {
+                        // Single line indentation
+                        this.value = value.substring(0, start) + '    ' + value.substring(end);
+                        this.selectionStart = this.selectionEnd = start + 4;
+                    }
                     
-                    // Move cursor to after the inserted spaces
-                    this.selectionStart = this.selectionEnd = start + 4;
-                    
-                    // Trigger input event for line numbers
                     this.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             });
@@ -592,13 +636,18 @@
             updateLineNumbers();
         }
         
-        // Update specific line numbers
+        // Optimized line number update
         function updateLineNumbers(textareaId, lineNumbersId) {
             const textarea = document.getElementById(textareaId);
             const lineNumbers = document.getElementById(lineNumbersId);
             
-            if (textarea && lineNumbers) {
-                const lines = textarea.value.split('\n');
+            if (!textarea || !lineNumbers) return;
+            
+            const lines = textarea.value.split('\n');
+            const currentLineCount = lineNumbers.children.length;
+            
+            // Only update if line count changed
+            if (lines.length !== currentLineCount) {
                 lineNumbers.innerHTML = '';
                 
                 for (let i = 1; i <= lines.length; i++) {
@@ -787,13 +836,31 @@
             }
         }
 
-        // Enhanced CSS validation with multiple error detection
+        // Enhanced CSS validation with browser parser
         function validateCSS(css) {
             const errors = [];
             if (!css.trim()) return errors;
             
             try {
-                // Advanced parsing for better error detection
+                // Use the browser's CSS parser for more accurate validation
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+                
+                // Check if styles were parsed successfully
+                const sheet = style.sheet;
+                if (!sheet) {
+                    errors.push({
+                        type: errorTypes.ERROR,
+                        message: "Invalid CSS syntax",
+                        line: 1,
+                        tab: 'css'
+                    });
+                }
+                
+                document.head.removeChild(style);
+                
+                // Additional static analysis
                 const lines = css.split('\n');
                 let braceCount = 0;
                 let inRule = false;
@@ -1415,8 +1482,11 @@ function correctFunction() {
             }
         }
         
-        // Listen for runtime errors from iframe
+        // Enhanced message listener with security validation
         window.addEventListener('message', function(event) {
+            // Security check - only accept messages from same origin
+            if (event.origin !== window.location.origin) return;
+            
             // Check if this message is from our iframe
             if (currentIframe && event.data && event.data.iframeId === currentIframe.dataset.iframeId) {
                 const errorInfo = event.data;
