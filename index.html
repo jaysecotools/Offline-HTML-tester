@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Offline Code Debugger</title>
     <style>
-        /* Your CSS remains the same - it's well written */
+        
         * {
             box-sizing: border-box;
             margin: 0;
@@ -854,7 +854,8 @@
                             }
                         }
                     }
-                    
+
+                    /* COMMENTED OUT - causing false positives 
                     // Check for common typos
                     if (lineText.includes('scrpt') || lineText.includes('scrip')) {
                         errors.push({
@@ -864,6 +865,7 @@
                             tab: 'html'
                         });
                     }
+                        */
                     
                     if (lineText.includes('div') && lineText.includes('calss=')) {
                         errors.push({
