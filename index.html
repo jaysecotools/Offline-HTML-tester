@@ -855,25 +855,25 @@
                         }
                     }
                     
-                    // Check for common typos
-                    if (lineText.includes('scrpt') || lineText.includes('scrip')) {
-                        errors.push({
-                            type: errorTypes.WARNING,
-                            message: "Possible typo: 'scrpt' should be 'script'",
-                            line: lineNum,
-                            tab: 'html'
-                        });
-                    }
-                    
-                    if (lineText.includes('div') && lineText.includes('calss=')) {
-                        errors.push({
-                            type: errorTypes.WARNING,
-                            message: "Possible typo: 'calss' should be 'class'",
-                            line: lineNum,
-                            tab: 'html'
-                        });
-                    }
-                }
+                    // Check for common typos - IMPROVED: Use regex to avoid false positives
+const scriptTypoRegex = /\bscrpt\b|\bscrip\b/;
+if (scriptTypoRegex.test(lineText) && !lineText.includes('script')) {
+    errors.push({
+        type: errorTypes.WARNING,
+        message: "Possible typo: found 'scrpt' or 'scrip' - did you mean 'script'?",
+        line: lineNum,
+        tab: 'html'
+    });
+}
+
+if (lineText.includes('div') && lineText.includes('calss=')) {
+    errors.push({
+        type: errorTypes.WARNING,
+        message: "Possible typo: 'calss' should be 'class'",
+        line: lineNum,
+        tab: 'html'
+    });
+}
                 
                 // Check for unclosed tags
                 if (openTags.length > 0) {
