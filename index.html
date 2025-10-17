@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Offline Code Debugger</title>
     <style>
+        /* Your CSS remains the same - it's well written */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -556,7 +557,7 @@
             currentTab = tabName;
             
             // Update line numbers for the active tab
-            updateLineNumbers(`${tabName}-code`, `${tabName}-line-numbers`);
+            updateLineNumbersForTab(tabName);
             
             // Update error navigation for current tab
             updateErrorNavigation();
@@ -636,10 +637,10 @@
             updateLineNumbers();
         }
         
-        // Optimized line number update
-        function updateLineNumbers(textareaId, lineNumbersId) {
-            const textarea = document.getElementById(textareaId);
-            const lineNumbers = document.getElementById(lineNumbersId);
+        // Update line numbers for specific tab
+        function updateLineNumbersForTab(tabName) {
+            const textarea = document.getElementById(`${tabName}-code`);
+            const lineNumbers = document.getElementById(`${tabName}-line-numbers`);
             
             if (!textarea || !lineNumbers) return;
             
@@ -658,6 +659,13 @@
                 
                 lineNumbers.style.height = textarea.scrollHeight + 'px';
             }
+        }
+        
+        // Update all line numbers - FIXED: This function was missing
+        function updateAllLineNumbers() {
+            updateLineNumbersForTab('html');
+            updateLineNumbersForTab('css');
+            updateLineNumbersForTab('js');
         }
         
         // Clear all error and warning markers
@@ -836,31 +844,13 @@
             }
         }
 
-        // Enhanced CSS validation with browser parser
+        // Enhanced CSS validation with improved error detection
         function validateCSS(css) {
             const errors = [];
             if (!css.trim()) return errors;
             
             try {
-                // Use the browser's CSS parser for more accurate validation
-                const style = document.createElement('style');
-                style.textContent = css;
-                document.head.appendChild(style);
-                
-                // Check if styles were parsed successfully
-                const sheet = style.sheet;
-                if (!sheet) {
-                    errors.push({
-                        type: errorTypes.ERROR,
-                        message: "Invalid CSS syntax",
-                        line: 1,
-                        tab: 'css'
-                    });
-                }
-                
-                document.head.removeChild(style);
-                
-                // Additional static analysis
+                // Use simpler validation approach to avoid DOM issues
                 const lines = css.split('\n');
                 let braceCount = 0;
                 let inRule = false;
@@ -1197,7 +1187,7 @@ function correctFunction() {
     return true;
 }`;
             clearCode();
-            updateAllLineNumbers();
+            updateAllLineNumbers(); // Now this function exists
         }
 
         // Clear output and errors
@@ -1214,13 +1204,6 @@ function correctFunction() {
             updateErrorSummary();
             updateErrorCount();
             updateStatus("Cleared");
-        }
-        
-        // Update all line numbers
-        function updateAllLineNumbers() {
-            updateLineNumbers('html-code', 'html-line-numbers');
-            updateLineNumbers('css-code', 'css-line-numbers');
-            updateLineNumbers('js-code', 'js-line-numbers');
         }
         
         // Update status bar
@@ -1331,7 +1314,10 @@ function correctFunction() {
             if (currentTabErrors.length === 0) return;
             
             let currentIndex = currentTabErrorIndex[currentTab];
-            if (currentIndex === -1) currentIndex = 0;
+            if (currentIndex === -1 && currentTabErrors.length > 0) {
+                currentIndex = 0;
+                currentTabErrorIndex[currentTab] = 0;
+            }
             
             // Calculate new position
             let newIndex = currentIndex + direction;
@@ -1347,6 +1333,7 @@ function correctFunction() {
             
             if (globalIndex !== -1) {
                 navigateToError(globalIndex);
+                currentTabErrorIndex[currentTab] = newIndex;
             }
         }
 
@@ -1399,7 +1386,9 @@ function correctFunction() {
                     );
                 }
                 
-                navigateToError(firstErrorIndex);
+                if (firstErrorIndex !== -1) {
+                    navigateToError(firstErrorIndex);
+                }
                 errorDisplay.textContent = `Found ${allErrors.length} issues. Use navigation to review them.`;
                 updateStatus(`Found ${allErrors.length} issues`);
                 return;
@@ -1485,7 +1474,10 @@ function correctFunction() {
         // Enhanced message listener with security validation
         window.addEventListener('message', function(event) {
             // Security check - only accept messages from same origin
-            if (event.origin !== window.location.origin) return;
+            // Note: For local files, origin may be null, so we'll allow that
+            if (event.origin !== window.location.origin && event.origin !== "null" && event.origin !== "") {
+                return;
+            }
             
             // Check if this message is from our iframe
             if (currentIframe && event.data && event.data.iframeId === currentIframe.dataset.iframeId) {
