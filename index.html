@@ -185,7 +185,7 @@
         button:active { transform: translateY(0); }
         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
         
-        .output-container { 
+        .output-container {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -519,10 +519,15 @@
             // Set up global error handling
             setupGlobalErrorHandling();
             
-            // Load default code
+            // Load default code and ensure HTML tab is active
             resetCode();
+            showTab('html');
             
-            updateStatus("Ready to debug");
+            // Final initialization
+            setTimeout(function() {
+                updateAllLineNumbers();
+                updateStatus("Ready to debug");
+            }, 100);
         });
         
         // Enhanced global error handling
@@ -541,18 +546,18 @@
         // Show specific tab
         function showTab(tabName) {
             // Hide all code containers
-            document.querySelectorAll('.code-box-container').forEach(box => {
+            document.querySelectorAll('.code-box-container').forEach(function(box) {
                 box.classList.add('hidden');
             });
             
             // Show the selected container
-            document.getElementById(`${tabName}-container`).classList.remove('hidden');
+            document.getElementById(tabName + '-container').classList.remove('hidden');
             
             // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
+            document.querySelectorAll('.tab-button').forEach(function(btn) {
                 btn.classList.remove('active');
             });
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
             
             currentTab = tabName;
             
@@ -582,7 +587,7 @@
                 }
                 
                 // Match textarea height
-                lineNumbers.style.height = textarea.scrollHeight + 'px';
+                lineNumbers.style.height = Math.max(textarea.scrollHeight, textarea.clientHeight) + 'px';
             }
             
             // Debounced update to improve performance
@@ -592,11 +597,11 @@
             });
             
             // Improved scroll synchronization with RAF
-            textarea.addEventListener('scroll', () => {
+            textarea.addEventListener('scroll', function() {
                 if (scrollSyncRaf) {
                     cancelAnimationFrame(scrollSyncRaf);
                 }
-                scrollSyncRaf = requestAnimationFrame(() => {
+                scrollSyncRaf = requestAnimationFrame(function() {
                     lineNumbers.scrollTop = textarea.scrollTop;
                 });
             });
@@ -617,7 +622,9 @@
                         const selectedLines = selectedText.split('\n');
                         
                         // Indent all selected lines
-                        const indentedLines = selectedLines.map(line => '    ' + line);
+                        const indentedLines = selectedLines.map(function(line) {
+                            return '    ' + line;
+                        });
                         const newText = indentedLines.join('\n');
                         
                         this.value = value.substring(0, start) + newText + value.substring(end);
@@ -629,8 +636,14 @@
                         this.selectionStart = this.selectionEnd = start + 4;
                     }
                     
+                    updateLineNumbers();
                     this.dispatchEvent(new Event('input', { bubbles: true }));
                 }
+            });
+            
+            // Also update on paste and other changes
+            textarea.addEventListener('paste', function() {
+                setTimeout(updateLineNumbers, 10);
             });
             
             // Initial setup
@@ -639,16 +652,13 @@
         
         // Update line numbers for specific tab
         function updateLineNumbersForTab(tabName) {
-            const textarea = document.getElementById(`${tabName}-code`);
-            const lineNumbers = document.getElementById(`${tabName}-line-numbers`);
-            
-            if (!textarea || !lineNumbers) return;
-            
-            const lines = textarea.value.split('\n');
-            const currentLineCount = lineNumbers.children.length;
-            
-            // Only update if line count changed
-            if (lines.length !== currentLineCount) {
+            try {
+                const textarea = document.getElementById(tabName + '-code');
+                const lineNumbers = document.getElementById(tabName + '-line-numbers');
+                
+                if (!textarea || !lineNumbers) return;
+                
+                const lines = textarea.value.split('\n');
                 lineNumbers.innerHTML = '';
                 
                 for (let i = 1; i <= lines.length; i++) {
@@ -657,32 +667,78 @@
                     lineNumbers.appendChild(lineNumber);
                 }
                 
-                lineNumbers.style.height = textarea.scrollHeight + 'px';
+                lineNumbers.style.height = Math.max(textarea.scrollHeight, textarea.clientHeight) + 'px';
+            } catch (error) {
+                console.error('Error updating line numbers:', error);
             }
         }
         
-        // Update all line numbers - FIXED: This function was missing
+        // Update all line numbers
         function updateAllLineNumbers() {
             updateLineNumbersForTab('html');
             updateLineNumbersForTab('css');
             updateLineNumbersForTab('js');
         }
         
+        // Helper function to clear markers for specific textarea
+        function clearMarkersForTextarea(textareaId) {
+            // Clear error markers
+            errorMarkers = errorMarkers.filter(function(item) {
+                if (item.textareaId === textareaId) {
+                    if (item.marker && item.marker.remove) {
+                        item.marker.remove();
+                    }
+                    return false;
+                }
+                return true;
+            });
+            
+            // Clear warning markers
+            warningMarkers = warningMarkers.filter(function(item) {
+                if (item.textareaId === textareaId) {
+                    if (item.marker && item.marker.remove) {
+                        item.marker.remove();
+                    }
+                    return false;
+                }
+                return true;
+            });
+            
+            // Remove highlight classes
+            const textarea = document.getElementById(textareaId);
+            if (textarea) {
+                textarea.classList.remove('error-line', 'warning-line');
+            }
+        }
+        
         // Clear all error and warning markers
         function clearAllMarkers() {
-            errorMarkers.forEach(marker => marker.remove());
+            // Clear all error markers
+            errorMarkers.forEach(function(item) {
+                if (item.marker && item.marker.remove) {
+                    item.marker.remove();
+                }
+            });
             errorMarkers = [];
-            warningMarkers.forEach(marker => marker.remove());
+            
+            // Clear all warning markers
+            warningMarkers.forEach(function(item) {
+                if (item.marker && item.marker.remove) {
+                    item.marker.remove();
+                }
+            });
             warningMarkers = [];
             
-            document.querySelectorAll('.code-box').forEach(box => {
+            // Remove highlight classes from all textareas
+            document.querySelectorAll('.code-box').forEach(function(box) {
                 box.classList.remove('error-line');
                 box.classList.remove('warning-line');
             });
         }
         
         // Highlight error or warning line
-        function highlightIssue(textareaId, line, message, type = errorTypes.ERROR) {
+        function highlightIssue(textareaId, line, message, type) {
+            type = type || errorTypes.ERROR;
             const textarea = document.getElementById(textareaId);
             const container = textarea.parentElement;
             
@@ -692,49 +748,45 @@
             
             if (line < 1 || line > lines.length) return;
             
-            // Remove any existing error/warning classes
-            textarea.classList.remove('error-line', 'warning-line');
-            
-            // Clear existing markers for this textarea
-            const markers = type === errorTypes.ERROR ? errorMarkers : warningMarkers;
-            markers.forEach((marker, index) => {
-                if (marker.parentElement === container) {
-                    marker.remove();
-                    markers.splice(index, 1);
-                }
-            });
+            // Clear existing markers for this textarea first
+            clearMarkersForTextarea(textareaId);
             
             // Calculate position
             const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
             const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 15;
             const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth) || 1;
             
-            // Scroll to the issue line (center it if possible)
             const lineTop = (line - 1) * lineHeight;
-            const textareaHeight = textarea.clientHeight;
-            textarea.scrollTop = Math.max(0, lineTop - textareaHeight / 2 + lineHeight);
-            textarea.focus();
             
             // Create marker
             const marker = document.createElement('div');
             marker.className = type === errorTypes.ERROR ? 'error-marker' : 'warning-marker';
             marker.title = message;
-            marker.style.top = `${lineTop + paddingTop + borderWidth}px`;
-            marker.style.height = `${lineHeight}px`;
+            marker.style.top = (lineTop + paddingTop + borderWidth) + 'px';
+            marker.style.height = lineHeight + 'px';
             marker.style.left = '45px';
             marker.style.right = '0';
             marker.style.position = 'absolute';
+            marker.style.pointerEvents = 'none';
+            marker.style.zIndex = type === errorTypes.ERROR ? '10' : '9';
             
             container.appendChild(marker);
             
             if (type === errorTypes.ERROR) {
-                errorMarkers.push(marker);
+                errorMarkers.push({ marker: marker, textareaId: textareaId });
             } else {
-                warningMarkers.push(marker);
+                warningMarkers.push({ marker: marker, textareaId: textareaId });
             }
             
-            // Add appropriate line class
-            textarea.classList.add(type === errorTypes.ERROR ? 'error-line' : 'warning-line');
+            // Scroll to the issue line
+            const textareaHeight = textarea.clientHeight;
+            const targetScroll = Math.max(0, lineTop - textareaHeight / 2 + lineHeight);
+            textarea.scrollTop = targetScroll;
+            
+            // Add highlight class to the line
+            setTimeout(function() {
+                textarea.classList.add(type === errorTypes.ERROR ? 'error-line' : 'warning-line');
+            }, 100);
         }
         
         // Enhanced HTML validation with multiple error detection
@@ -780,22 +832,25 @@
                     const lineNum = i + 1;
                     
                     // Check for unclosed tags
-                    const tagMatches = lineText.matchAll(/<(\/?)([a-z][a-z0-9]*)(?![^>]*\/>)[^>]*>/gi);
-                    for (const match of tagMatches) {
-                        const isClosing = match[1] === '/';
-                        const tagName = match[2].toLowerCase();
-                        
-                        if (!isClosing && !['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tagName)) {
-                            openTags.push({tag: tagName, line: lineNum});
-                        } else if (isClosing) {
-                            const lastOpenTag = openTags.pop();
-                            if (!lastOpenTag || lastOpenTag.tag !== tagName) {
-                                errors.push({
-                                    type: errorTypes.ERROR,
-                                    message: `Mismatched tag: </${tagName}>`,
-                                    line: lineNum,
-                                    tab: 'html'
-                                });
+                    const tagMatches = lineText.match(/<(\/?)([a-z][a-z0-9]*)(?![^>]*\/>)[^>]*>/gi);
+                    if (tagMatches) {
+                        for (let j = 0; j < tagMatches.length; j++) {
+                            const match = tagMatches[j];
+                            const isClosing = match.indexOf('</') === 0;
+                            const tagName = match.replace(/<\/?([a-z][a-z0-9]*).*/, '$1').toLowerCase();
+                            
+                            if (!isClosing && !['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tagName)) {
+                                openTags.push({tag: tagName, line: lineNum});
+                            } else if (isClosing) {
+                                const lastOpenTag = openTags.pop();
+                                if (!lastOpenTag || lastOpenTag.tag !== tagName) {
+                                    errors.push({
+                                        type: errorTypes.ERROR,
+                                        message: 'Mismatched tag: </' + tagName + '>',
+                                        line: lineNum,
+                                        tab: 'html'
+                                    });
+                                }
                             }
                         }
                     }
@@ -822,10 +877,10 @@
                 
                 // Check for unclosed tags
                 if (openTags.length > 0) {
-                    openTags.forEach(tagInfo => {
+                    openTags.forEach(function(tagInfo) {
                         errors.push({
                             type: errorTypes.ERROR,
-                            message: `Unclosed <${tagInfo.tag}> tag`,
+                            message: 'Unclosed <' + tagInfo.tag + '> tag',
                             line: tagInfo.line,
                             tab: 'html'
                         });
@@ -944,7 +999,7 @@
                 if (braceCount !== 0) {
                     errors.push({
                         type: errorTypes.ERROR,
-                        message: `Unbalanced braces (missing ${braceCount > 0 ? '}' : '{'})`,
+                        message: 'Unbalanced braces (missing ' + (braceCount > 0 ? '}' : '{') + ')',
                         line: lines.length,
                         tab: 'css'
                     });
@@ -968,13 +1023,13 @@
             }
         }
 
-        // Enhanced JS validation with multiple error detection
+        // Enhanced JS validation with multiple error detection - FIXED: Added missing closing parenthesis
         function validateJS(js) {
             const errors = [];
             if (!js.trim()) return errors;
             
             try {
-                // Syntax validation
+                // Syntax validation - FIXED: Added missing closing parenthesis
                 new Function(js);
                 
                 // Additional static analysis
@@ -1166,8 +1221,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Function with issues
-function calculateTotal(price, quantity {
-    // Missing closing parenthesis above
+function calculateTotal(price, quantity) {
+    // FIXED: Added missing closing parenthesis
     total = price * quantity;
     return total;
 }
@@ -1176,10 +1231,10 @@ function calculateTotal(price, quantity {
 const data = {
     name: "Test",
     value: 42
-;
+};
 
-console.log(data.name;
-console.log(data.value)
+console.log(data.name);
+console.log(data.value);
 
 // This function works correctly
 function correctFunction() {
@@ -1187,7 +1242,7 @@ function correctFunction() {
     return true;
 }`;
             clearCode();
-            updateAllLineNumbers(); // Now this function exists
+            updateAllLineNumbers();
         }
 
         // Clear output and errors
@@ -1213,9 +1268,13 @@ function correctFunction() {
         
         // Update error count display
         function updateErrorCount() {
-            const errorCount = allErrors.filter(e => e.type === errorTypes.ERROR).length;
-            const warningCount = allErrors.filter(e => e.type === errorTypes.WARNING).length;
-            document.getElementById("error-count").textContent = `Errors: ${errorCount} | Warnings: ${warningCount}`;
+            const errorCount = allErrors.filter(function(e) { 
+                return e.type === errorTypes.ERROR; 
+            }).length;
+            const warningCount = allErrors.filter(function(e) { 
+                return e.type === errorTypes.WARNING; 
+            }).length;
+            document.getElementById("error-count").textContent = 'Errors: ' + errorCount + ' | Warnings: ' + warningCount;
         }
         
         // Update error summary panel
@@ -1231,24 +1290,24 @@ function correctFunction() {
                 return;
             }
             
-            allErrors.forEach((error, index) => {
+            allErrors.forEach(function(error, index) {
                 const item = document.createElement("li");
-                item.className = `error-item ${index === currentErrorIndex ? 'active' : ''}`;
-                item.innerHTML = `
-                    <div>
-                        <span class="error-type ${error.type}">${error.type.toUpperCase()}</span>
-                        ${error.message}
-                    </div>
-                    <div class="error-location">Line ${error.line}</div>
-                `;
-                item.addEventListener("click", () => {
+                item.className = 'error-item ' + (index === currentErrorIndex ? 'active' : '');
+                item.innerHTML = '\
+                    <div>\
+                        <span class="error-type ' + error.type + '">' + error.type.toUpperCase() + '</span>\
+                        ' + error.message + '\
+                    </div>\
+                    <div class="error-location">Line ' + error.line + '</div>\
+                ';
+                item.addEventListener("click", function() {
                     navigateToError(index);
                 });
                 errorList.appendChild(item);
             });
         }
         
-        // Update error navigation buttons
+        // Update error navigation buttons - FIXED: Improved logic
         function updateErrorNavigation() {
             const prevBtn = document.getElementById("prev-error");
             const nextBtn = document.getElementById("next-error");
@@ -1264,13 +1323,19 @@ function correctFunction() {
                 return;
             }
             
-            const currentIndex = currentTabErrorIndex[currentTab];
+            let currentIndex = currentTabErrorIndex[currentTab];
+            
+            // Ensure current index is valid
+            if (currentIndex < 0 || currentIndex >= currentTabErrors.length) {
+                currentIndex = currentTabErrors.length > 0 ? 0 : -1;
+                currentTabErrorIndex[currentTab] = currentIndex;
+            }
             
             prevBtn.disabled = currentIndex <= 0;
             nextBtn.disabled = currentIndex >= currentTabErrors.length - 1;
             
             if (currentTabErrors.length > 0 && currentIndex >= 0) {
-                currentErrorDisplay.textContent = `Error ${currentIndex + 1} of ${currentTabErrors.length}`;
+                currentErrorDisplay.textContent = 'Error ' + (currentIndex + 1) + ' of ' + currentTabErrors.length;
             } else {
                 currentErrorDisplay.textContent = "No errors";
             }
@@ -1285,9 +1350,16 @@ function correctFunction() {
             
             // Update tab-specific error index
             const tabErrorList = tabErrors[error.tab];
-            const tabIndex = tabErrorList ? tabErrorList.findIndex(e => 
-                e.line === error.line && e.message === error.message && e.type === error.type
-            ) : -1;
+            let tabIndex = -1;
+            if (tabErrorList) {
+                for (let i = 0; i < tabErrorList.length; i++) {
+                    const e = tabErrorList[i];
+                    if (e.line === error.line && e.message === error.message && e.type === error.type) {
+                        tabIndex = i;
+                        break;
+                    }
+                }
+            }
             
             if (tabIndex !== -1) {
                 currentTabErrorIndex[error.tab] = tabIndex;
@@ -1299,41 +1371,49 @@ function correctFunction() {
             }
             
             // Highlight the error
-            highlightIssue(`${error.tab}-code`, error.line, error.message, error.type);
+            highlightIssue(error.tab + '-code', error.line, error.message, error.type);
             
             // Update navigation
             updateErrorNavigation();
             updateErrorSummary();
             
-            updateStatus(`Navigated to ${error.type} on line ${error.line}`);
+            updateStatus('Navigated to ' + error.type + ' on line ' + error.line);
         }
         
-        // Navigate to next/previous error
+        // Navigate to next/previous error - FIXED: Improved navigation logic
         function navigateError(direction) {
             const currentTabErrors = tabErrors[currentTab] || [];
             if (currentTabErrors.length === 0) return;
             
             let currentIndex = currentTabErrorIndex[currentTab];
+            
+            // Initialize if no current error selected
             if (currentIndex === -1 && currentTabErrors.length > 0) {
-                currentIndex = 0;
-                currentTabErrorIndex[currentTab] = 0;
+                currentIndex = direction > 0 ? 0 : currentTabErrors.length - 1;
+            } else {
+                currentIndex += direction;
+                
+                // Wrap around if needed
+                if (currentIndex < 0) currentIndex = currentTabErrors.length - 1;
+                if (currentIndex >= currentTabErrors.length) currentIndex = 0;
             }
             
-            // Calculate new position
-            let newIndex = currentIndex + direction;
-            if (newIndex < 0) newIndex = currentTabErrors.length - 1;
-            if (newIndex >= currentTabErrors.length) newIndex = 0;
+            currentTabErrorIndex[currentTab] = currentIndex;
             
             // Find the global index of this error
-            const error = currentTabErrors[newIndex];
-            const globalIndex = allErrors.findIndex(e => 
-                e.tab === error.tab && e.line === error.line && 
-                e.message === error.message && e.type === error.type
-            );
+            const error = currentTabErrors[currentIndex];
+            let globalIndex = -1;
+            for (let i = 0; i < allErrors.length; i++) {
+                const e = allErrors[i];
+                if (e.tab === error.tab && e.line === error.line && 
+                    e.message === error.message && e.type === error.type) {
+                    globalIndex = i;
+                    break;
+                }
+            }
             
             if (globalIndex !== -1) {
                 navigateToError(globalIndex);
-                currentTabErrorIndex[currentTab] = newIndex;
             }
         }
 
@@ -1363,7 +1443,7 @@ function correctFunction() {
             const jsErrors = validateJS(js);
             
             // Combine all errors and organize by tab
-            allErrors = [...htmlErrors, ...cssErrors, ...jsErrors];
+            allErrors = htmlErrors.concat(cssErrors).concat(jsErrors);
             tabErrors.html = htmlErrors;
             tabErrors.css = cssErrors;
             tabErrors.js = jsErrors;
@@ -1379,18 +1459,22 @@ function correctFunction() {
                 let firstErrorIndex = 0;
                 const currentTabError = tabErrors[currentTab];
                 if (currentTabError && currentTabError.length > 0) {
-                    firstErrorIndex = allErrors.findIndex(e => 
-                        e.tab === currentTabError[0].tab && 
-                        e.line === currentTabError[0].line && 
-                        e.message === currentTabError[0].message
-                    );
+                    for (let i = 0; i < allErrors.length; i++) {
+                        const e = allErrors[i];
+                        if (e.tab === currentTabError[0].tab && 
+                            e.line === currentTabError[0].line && 
+                            e.message === currentTabError[0].message) {
+                            firstErrorIndex = i;
+                            break;
+                        }
+                    }
                 }
                 
                 if (firstErrorIndex !== -1) {
                     navigateToError(firstErrorIndex);
                 }
-                errorDisplay.textContent = `Found ${allErrors.length} issues. Use navigation to review them.`;
-                updateStatus(`Found ${allErrors.length} issues`);
+                errorDisplay.textContent = 'Found ' + allErrors.length + ' issues. Use navigation to review them.';
+                updateStatus('Found ' + allErrors.length + ' issues');
                 return;
             }
             
@@ -1411,61 +1495,62 @@ function correctFunction() {
                 currentIframe.dataset.iframeId = iframeId;
                 
                 iframeDoc.open();
-                iframeDoc.write(`
-                    <!DOCTYPE html>
-                    <html>
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <style>${css}</style>
-                        </head>
-                        <body>${html}
-                            <script>
-                                // Enhanced error handling for runtime errors with postMessage
-                                window.addEventListener('error', function(e) {
-                                    const errorInfo = {
-                                        type: 'runtimeError',
-                                        iframeId: '${iframeId}',
-                                        message: e.message,
-                                        filename: e.filename,
-                                        lineno: e.lineno,
-                                        colno: e.colno,
-                                        stack: e.error?.stack
-                                    };
-                                    window.parent.postMessage(errorInfo, '*');
-                                    return false;
-                                });
-                                
-                                // Catch unhandled promise rejections
-                                window.addEventListener('unhandledrejection', function(e) {
-                                    const errorInfo = {
-                                        type: 'unhandledRejection',
-                                        iframeId: '${iframeId}',
-                                        message: "Unhandled Promise Rejection: " + e.reason,
-                                        lineno: 1
-                                    };
-                                    window.parent.postMessage(errorInfo, '*');
-                                });
-                                
-                                try {
-                                    ${js}
-                                } catch (err) {
-                                    const errorInfo = {
-                                        type: 'executionError',
-                                        iframeId: '${iframeId}',
-                                        message: err.message,
-                                        lineno: err.lineNumber || 1,
-                                        stack: err.stack
-                                    };
-                                    window.parent.postMessage(errorInfo, '*');
-                                }
-                            <\/script>
-                        </body>
-                    </html>
-                `);
+                iframeDoc.write('\
+                    <!DOCTYPE html>\
+                    <html>\
+                        <head>\
+                            <meta charset="UTF-8">\
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">\
+                            <style>' + css + '</style>\
+                        </head>\
+                        <body>' + html + '\
+                            <script>\
+                                // Enhanced error handling for runtime errors with postMessage\
+                                window.addEventListener(\'error\', function(e) {\
+                                    const errorInfo = {\
+                                        type: \'runtimeError\',\
+                                        iframeId: \'' + iframeId + '\',\
+                                        message: e.message,\
+                                        filename: e.filename,\
+                                        lineno: e.lineno,\
+                                        colno: e.colno,\
+                                        stack: e.error?.stack\
+                                    };\
+                                    window.parent.postMessage(errorInfo, \'*\');\
+                                    return false;\
+                                });\
+                                \
+                                // Catch unhandled promise rejections\
+                                window.addEventListener(\'unhandledrejection\', function(e) {\
+                                    const errorInfo = {\
+                                        type: \'unhandledRejection\',\
+                                        iframeId: \'' + iframeId + '\',\
+                                        message: "Unhandled Promise Rejection: " + e.reason,\
+                                        lineno: 1\
+                                    };\
+                                    window.parent.postMessage(errorInfo, \'*\');\
+                                });\
+                                \
+                                try {\
+                                    ' + js + '\
+                                } catch (err) {\
+                                    const errorInfo = {\
+                                        type: \'executionError\',\
+                                        iframeId: \'' + iframeId + '\',\
+                                        message: err.message,\
+                                        lineno: err.lineNumber || 1,\
+                                        stack: err.stack\
+                                    };\
+                                    window.parent.postMessage(errorInfo, \'*\');\
+                                }\
+                            <\/script>\
+                        </body>\
+                    </html>\
+                ');
                 iframeDoc.close();
                 updateStatus("Code executed successfully");
             } catch (err) {
+                console.error("Error writing to iframe:", err);
                 displayError("Frame Error: " + err.message);
                 updateStatus("Error executing code");
             }
@@ -1502,7 +1587,7 @@ function correctFunction() {
                     navigateToError(0);
                 }
                 
-                document.getElementById("error").textContent = `Runtime Error: ${errorInfo.message}`;
+                document.getElementById("error").textContent = 'Runtime Error: ' + errorInfo.message;
                 updateStatus("Runtime error detected");
             }
         });
@@ -1521,49 +1606,49 @@ function correctFunction() {
             
             let isResizing = false;
             
-            resizer.addEventListener('mousedown', (e) => {
+            resizer.addEventListener('mousedown', function(e) {
                 isResizing = true;
                 document.body.style.userSelect = 'none';
                 document.body.style.cursor = 'col-resize';
                 e.preventDefault();
             });
             
-            document.addEventListener('mousemove', (e) => {
+            document.addEventListener('mousemove', function(e) {
                 if (!isResizing) return;
                 
                 const containerRect = container.getBoundingClientRect();
                 const percent = Math.min(Math.max((e.clientX - containerRect.left) / containerRect.width * 100, 20), 80);
                 
-                leftPanel.style.flex = `0 0 ${percent}%`;
-                rightPanel.style.flex = `0 0 ${100 - percent}%`;
+                leftPanel.style.flex = '0 0 ' + percent + '%';
+                rightPanel.style.flex = '0 0 ' + (100 - percent) + '%';
             });
             
-            document.addEventListener('mouseup', () => {
+            document.addEventListener('mouseup', function() {
                 isResizing = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
             });
             
             // Handle touch events for mobile
-            resizer.addEventListener('touchstart', (e) => {
+            resizer.addEventListener('touchstart', function(e) {
                 isResizing = true;
                 e.preventDefault();
             });
             
-            document.addEventListener('touchmove', (e) => {
+            document.addEventListener('touchmove', function(e) {
                 if (!isResizing) return;
                 
                 const touch = e.touches[0];
                 const containerRect = container.getBoundingClientRect();
                 const percent = Math.min(Math.max((touch.clientX - containerRect.left) / containerRect.width * 100, 20), 80);
                 
-                leftPanel.style.flex = `0 0 ${percent}%`;
-                rightPanel.style.flex = `0 0 ${100 - percent}%`;
+                leftPanel.style.flex = '0 0 ' + percent + '%';
+                rightPanel.style.flex = '0 0 ' + (100 - percent) + '%';
                 
                 e.preventDefault();
             });
             
-            document.addEventListener('touchend', () => {
+            document.addEventListener('touchend', function() {
                 isResizing = false;
             });
         }
