@@ -78,18 +78,19 @@
             border-radius: 8px;
         }
         
-        .code-box-container {
-            position: relative;
-            flex: 1;
-            overflow: auto;
-            background: #f8f9fa;
-        }
-        
-        .code-box-wrapper {
-            position: relative;
-            overflow: hidden;
-            height: 100%;
-        }
+.code-box-container {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.code-box-wrapper {
+    position: relative;
+    overflow: auto;
+    height: 100%;
+    display: flex;
+}
         
         .code-box { 
             width: auto;
@@ -596,15 +597,16 @@
                 resizeTimeout = setTimeout(updateLineNumbers, 100);
             });
             
-            // Improved scroll synchronization with RAF
-            textarea.addEventListener('scroll', function() {
-                if (scrollSyncRaf) {
-                    cancelAnimationFrame(scrollSyncRaf);
-                }
-                scrollSyncRaf = requestAnimationFrame(function() {
-                    lineNumbers.scrollTop = textarea.scrollTop;
-                });
-            });
+// Improved scroll synchronization with RAF
+textarea.addEventListener('scroll', function() {
+    if (scrollSyncRaf) {
+        cancelAnimationFrame(scrollSyncRaf);
+    }
+    scrollSyncRaf = requestAnimationFrame(function() {
+        lineNumbers.scrollTop = textarea.scrollTop;
+        lineNumbers.scrollLeft = textarea.scrollLeft;
+    });
+});
             
             // Enhanced tab key handler with multi-line support
             textarea.addEventListener('keydown', function(e) {
