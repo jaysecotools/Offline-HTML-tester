@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Offline Code Debugger</title>
     <style>
-        
         * {
             box-sizing: border-box;
             margin: 0;
@@ -78,23 +77,22 @@
             border-radius: 8px;
         }
         
-.code-box-container {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-    background: #f8f9fa;
-}
+        .code-box-container {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
 
-.code-box-wrapper {
-    position: relative;
-    overflow: auto;
-    height: 100%;
-    display: flex;
-}
+        .code-box-wrapper {
+            position: relative;
+            overflow: auto;
+            height: 100%;
+            display: flex;
+        }
         
         .code-box { 
-            width: auto;
-            min-width: 100%;
+            width: 100%;
             min-height: 200px;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
             padding: 15px 15px 15px 50px; 
@@ -108,8 +106,6 @@
             white-space: pre;
             outline: none;
             font-size: 14px;
-            position: relative;
-            left: 0;
             color: #2c3e50;
         }
         
@@ -435,16 +431,16 @@
             </div>
             
             <div class="button-group">
-                <button class="run-btn" onclick="runCode()"><span class="icon">▶</span> Validate & Run</button>
-                <button class="stop-btn" onclick="stopCode()"><span class="icon">■</span> Stop</button>
-                <button class="reset-btn" onclick="resetCode()"><span class="icon">↻</span> Reset</button>
-                <button class="clear-btn" onclick="clearCode()"><span class="icon">✖</span> Clear</button>
+                <button class="run-btn" id="run-btn"><span class="icon">▶</span> Validate & Run</button>
+                <button class="stop-btn" id="stop-btn"><span class="icon">■</span> Stop</button>
+                <button class="reset-btn" id="reset-btn"><span class="icon">↻</span> Reset</button>
+                <button class="clear-btn" id="clear-btn"><span class="icon">✖</span> Clear</button>
             </div>
             
             <div class="error-navigation">
-                <button class="nav-btn" id="prev-error" onclick="navigateError(-1)" disabled><span class="icon">◀</span> Prev</button>
+                <button class="nav-btn" id="prev-error"><span class="icon">◀</span> Prev</button>
                 <div class="current-error" id="current-error">No errors</div>
-                <button class="nav-btn" id="next-error" onclick="navigateError(1)" disabled>Next <span class="icon">▶</span></button>
+                <button class="nav-btn" id="next-error">Next <span class="icon">▶</span></button>
             </div>
             
             <div class="error-panel">
@@ -514,14 +510,21 @@
             setupLineNumbers('css-code', 'css-line-numbers');
             setupLineNumbers('js-code', 'js-line-numbers');
             
+            // Set up button event listeners
+            document.getElementById('run-btn').addEventListener('click', runCode);
+            document.getElementById('stop-btn').addEventListener('click', stopCode);
+            document.getElementById('reset-btn').addEventListener('click', resetCode);
+            document.getElementById('clear-btn').addEventListener('click', clearCode);
+            document.getElementById('prev-error').addEventListener('click', () => navigateError(-1));
+            document.getElementById('next-error').addEventListener('click', () => navigateError(1));
+            
             // Set up resizer
             setupResizers();
             
             // Set up global error handling
             setupGlobalErrorHandling();
             
-            // Load default code and ensure HTML tab is active
-            resetCode();
+            // Ensure HTML tab is active
             showTab('html');
             
             // Final initialization
@@ -597,16 +600,15 @@
                 resizeTimeout = setTimeout(updateLineNumbers, 100);
             });
             
-// Improved scroll synchronization with RAF
-textarea.addEventListener('scroll', function() {
-    if (scrollSyncRaf) {
-        cancelAnimationFrame(scrollSyncRaf);
-    }
-    scrollSyncRaf = requestAnimationFrame(function() {
-        lineNumbers.scrollTop = textarea.scrollTop;
-        lineNumbers.scrollLeft = textarea.scrollLeft;
-    });
-});
+            // Improved scroll synchronization with RAF
+            textarea.addEventListener('scroll', function() {
+                if (scrollSyncRaf) {
+                    cancelAnimationFrame(scrollSyncRaf);
+                }
+                scrollSyncRaf = requestAnimationFrame(function() {
+                    lineNumbers.scrollTop = textarea.scrollTop;
+                });
+            });
             
             // Enhanced tab key handler with multi-line support
             textarea.addEventListener('keydown', function(e) {
@@ -856,20 +858,9 @@ textarea.addEventListener('scroll', function() {
                             }
                         }
                     }
-
-                    /* COMMENTED OUT - causing false positives 
-                    // Check for common typos
-                    if (lineText.includes('scrpt') || lineText.includes('scrip')) {
-                        errors.push({
-                            type: errorTypes.WARNING,
-                            message: "Possible typo: 'scrpt' should be 'script'",
-                            line: lineNum,
-                            tab: 'html'
-                        });
-                    }
-                        */
                     
-                    if (lineText.includes('div') && lineText.includes('calss=')) {
+                    // Check for common typos
+                    if (lineText.includes('calss=')) {
                         errors.push({
                             type: errorTypes.WARNING,
                             message: "Possible typo: 'calss' should be 'class'",
@@ -1027,13 +1018,13 @@ textarea.addEventListener('scroll', function() {
             }
         }
 
-        // Enhanced JS validation with multiple error detection - FIXED: Added missing closing parenthesis
+        // Enhanced JS validation with multiple error detection
         function validateJS(js) {
             const errors = [];
             if (!js.trim()) return errors;
             
             try {
-                // Syntax validation - FIXED: Added missing closing parenthesis
+                // Syntax validation
                 new Function(js);
                 
                 // Additional static analysis
@@ -1144,107 +1135,11 @@ textarea.addEventListener('scroll', function() {
             }
         }
 
-        // Reset to default code
+        // Reset to default code (empty)
         function resetCode() {
-            document.getElementById("html-code").value = `<!DOCTYPE html>
-<html>
-<head>
-    <title>Test Page</title>
-</head>
-<body>
-    <h1>Welcome to the Debugger</h1>
-    <div id="demo">Hello, World!</div>
-    <button onclick="testFunc()">Click me</button>
-    
-    <script>
-        // This will cause an error
-        function testFunc() {
-            console.log("Button clicked!");
-            undefinedFunction(); // This function doesn't exist
-        }
-        
-        // This will work
-        function workingFunc() {
-            document.getElementById("demo").style.color = "blue";
-            console.log("Function executed successfully!");
-        }
-    <\/script>
-</body>
-</html>`;
-            document.getElementById("css-code").value = `/* Sample CSS with intentional errors */
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f0f0f0;
-}
-
-#demo { 
-    color: red; 
-    font-size: 24px; 
-    text-align: center;
-    padding: 10px;
-    missing-property: test; /* This property doesn't exist */
-}
-
-.container {
-    width: 100%
-    /* Missing semicolon above and unclosed rule below */
-    background: blue
-
-.button {
-    background: #0078d4;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-}
-
-/* This rule is correct */
-h1 {
-    color: #2c3e50;
-    text-align: center;
-    margin-bottom: 20px;
-}`;
-            document.getElementById("js-code").value = `// Sample JavaScript with multiple errors
-document.addEventListener('DOMContentLoaded', function() {
-    const demo = document.getElementById("demo");
-    if (demo) {
-        demo.style.fontWeight = "bold";
-        demo.innerHTML = "Welcome to the Debugger!";
-    }
-    
-    // Syntax error - missing closing parenthesis
-    console.log("Testing";
-    
-    // Runtime error - calling undefined function
-    undefinedFunction();
-    
-    // Another error - using undefined variable
-    x = y + z;
-});
-
-// Function with issues
-function calculateTotal(price, quantity) {
-    // FIXED: Added missing closing parenthesis
-    total = price * quantity;
-    return total;
-}
-
-// More complex example with multiple issues
-const data = {
-    name: "Test",
-    value: 42
-};
-
-console.log(data.name);
-console.log(data.value);
-
-// This function works correctly
-function correctFunction() {
-    console.log("This function works properly!");
-    return true;
-}`;
+            document.getElementById("html-code").value = "";
+            document.getElementById("css-code").value = "";
+            document.getElementById("js-code").value = "";
             clearCode();
             updateAllLineNumbers();
         }
@@ -1311,7 +1206,7 @@ function correctFunction() {
             });
         }
         
-        // Update error navigation buttons - FIXED: Improved logic
+        // Update error navigation buttons
         function updateErrorNavigation() {
             const prevBtn = document.getElementById("prev-error");
             const nextBtn = document.getElementById("next-error");
@@ -1384,7 +1279,7 @@ function correctFunction() {
             updateStatus('Navigated to ' + error.type + ' on line ' + error.line);
         }
         
-        // Navigate to next/previous error - FIXED: Improved navigation logic
+        // Navigate to next/previous error
         function navigateError(direction) {
             const currentTabErrors = tabErrors[currentTab] || [];
             if (currentTabErrors.length === 0) return;
