@@ -178,6 +178,7 @@
         .reset-btn { background: #f39c12; color: white; }
         .clear-btn { background: #7f8c8d; color: white; }
         .nav-btn { background: #34495e; color: white; flex: 0.5; }
+        .override-btn { background: #9b59b6; color: white; }
         button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         button:active { transform: translateY(0); }
         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
@@ -393,6 +394,45 @@
             white-space: nowrap;
             border: 0;
         }
+        
+        /* Override toggle styles */
+        .override-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .override-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .override-toggle label {
+            font-weight: 600;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+        
+        .override-note {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .override-active {
+            border-color: #9b59b6;
+            background: rgba(155, 89, 182, 0.05);
+        }
+        
+        .override-btn.active {
+            background: #8e44ad;
+        }
     </style>
 </head>
 <body>
@@ -432,9 +472,16 @@
             
             <div class="button-group">
                 <button class="run-btn" id="run-btn"><span class="icon">▶</span> Validate & Run</button>
+                <button class="override-btn" id="override-btn"><span class="icon">⚠</span> Force Run</button>
                 <button class="stop-btn" id="stop-btn"><span class="icon">■</span> Stop</button>
                 <button class="reset-btn" id="reset-btn"><span class="icon">↻</span> Reset</button>
                 <button class="clear-btn" id="clear-btn"><span class="icon">✖</span> Clear</button>
+            </div>
+            
+            <div class="override-toggle" id="override-toggle">
+                <input type="checkbox" id="override-checkbox">
+                <label for="override-checkbox">Always override errors and warnings</label>
+                <div class="override-note">When checked, code will always run regardless of validation issues</div>
             </div>
             
             <div class="error-navigation">
@@ -489,6 +536,10 @@
             js: -1
         };
         
+        // Override state
+        let overrideEnabled = false;
+        let alwaysOverride = false;
+        
         // Enhanced error storage
         const errorTypes = {
             ERROR: 'error',
@@ -497,26 +548,43 @@
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+        
+        function initializeApp() {
+            console.log("Initializing app...");
+            
             // Set up tab switching
-            document.querySelector('.tab-buttons').addEventListener('click', function(e) {
-                if (e.target.classList.contains('tab-button')) {
-                    const tabName = e.target.getAttribute('data-tab');
-                    showTab(tabName);
-                }
-            });
+            const tabButtons = document.querySelector('.tab-buttons');
+            if (tabButtons) {
+                tabButtons.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('tab-button')) {
+                        const tabName = e.target.getAttribute('data-tab');
+                        console.log("Switching to tab:", tabName);
+                        showTab(tabName);
+                    }
+                });
+            }
+            
+            // Set default content for testing
+            setDefaultContent();
             
             // Initialize line numbers for all editors
             setupLineNumbers('html-code', 'html-line-numbers');
             setupLineNumbers('css-code', 'css-line-numbers');
             setupLineNumbers('js-code', 'js-line-numbers');
             
-            // Set up button event listeners
-            document.getElementById('run-btn').addEventListener('click', runCode);
-            document.getElementById('stop-btn').addEventListener('click', stopCode);
-            document.getElementById('reset-btn').addEventListener('click', resetCode);
-            document.getElementById('clear-btn').addEventListener('click', clearCode);
-            document.getElementById('prev-error').addEventListener('click', () => navigateError(-1));
-            document.getElementById('next-error').addEventListener('click', () => navigateError(1));
+            // Set up button event listeners with proper error handling
+            setupButtonListeners();
+            
+            // Set up override toggle
+            const overrideCheckbox = document.getElementById('override-checkbox');
+            if (overrideCheckbox) {
+                overrideCheckbox.addEventListener('change', function(e) {
+                    alwaysOverride = e.target.checked;
+                    updateOverrideToggle();
+                });
+            }
             
             // Set up resizer
             setupResizers();
@@ -531,8 +599,87 @@
             setTimeout(function() {
                 updateAllLineNumbers();
                 updateStatus("Ready to debug");
+                console.log("App initialized successfully");
             }, 100);
-        });
+        }
+        
+        function setDefaultContent() {
+            // Set default content for testing if empty
+            if (!document.getElementById('html-code').value) {
+                document.getElementById('html-code').value = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Hello World</h1>
+    <p>This is a test paragraph</p>
+    <div id="output"></div>
+</body>
+</html>`;
+            }
+            
+            if (!document.getElementById('css-code').value) {
+                document.getElementById('css-code').value = `body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
+}
+
+h1 {
+    color: #2c3e50;
+    text-align: center;
+}
+
+p {
+    color: #7f8c8d;
+    line-height: 1.6;
+}`;
+            }
+            
+            if (!document.getElementById('js-code').value) {
+                document.getElementById('js-code').value = `// Simple JavaScript example
+console.log('Hello from JavaScript!');
+
+function greet(name) {
+    return 'Hello, ' + name + '!';
+}
+
+// Call the function
+const message = greet('World');
+document.getElementById('output').textContent = message;
+
+// This will cause a warning in validation
+if (x = 5) {
+    console.log('x is 5');
+}`;
+            }
+        }
+        
+        function setupButtonListeners() {
+            console.log("Setting up button listeners...");
+            
+            // Use event delegation for buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('#run-btn, #run-btn *')) {
+                    runCode();
+                } else if (e.target.matches('#override-btn, #override-btn *')) {
+                    forceRunCode();
+                } else if (e.target.matches('#stop-btn, #stop-btn *')) {
+                    stopCode();
+                } else if (e.target.matches('#reset-btn, #reset-btn *')) {
+                    resetCode();
+                } else if (e.target.matches('#clear-btn, #clear-btn *')) {
+                    clearCode();
+                } else if (e.target.matches('#prev-error, #prev-error *')) {
+                    navigateError(-1);
+                } else if (e.target.matches('#next-error, #next-error *')) {
+                    navigateError(1);
+                }
+            });
+            
+            console.log("Button listeners setup complete");
+        }
         
         // Enhanced global error handling
         function setupGlobalErrorHandling() {
@@ -555,13 +702,19 @@
             });
             
             // Show the selected container
-            document.getElementById(tabName + '-container').classList.remove('hidden');
+            const container = document.getElementById(tabName + '-container');
+            if (container) {
+                container.classList.remove('hidden');
+            }
             
             // Update tab buttons
             document.querySelectorAll('.tab-button').forEach(function(btn) {
                 btn.classList.remove('active');
             });
-            document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
+            const activeTab = document.querySelector('[data-tab="' + tabName + '"]');
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
             
             currentTab = tabName;
             
@@ -590,8 +743,10 @@
                     lineNumbers.appendChild(lineNumber);
                 }
                 
-                // Match textarea height
-                lineNumbers.style.height = Math.max(textarea.scrollHeight, textarea.clientHeight) + 'px';
+                // Fix height synchronization
+                lineNumbers.style.height = textarea.scrollHeight + 'px';
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
             }
             
             // Debounced update to improve performance
@@ -671,7 +826,9 @@
                     lineNumbers.appendChild(lineNumber);
                 }
                 
-                lineNumbers.style.height = Math.max(textarea.scrollHeight, textarea.clientHeight) + 'px';
+                lineNumbers.style.height = textarea.scrollHeight + 'px';
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
             } catch (error) {
                 console.error('Error updating line numbers:', error);
             }
@@ -740,6 +897,38 @@
             });
         }
         
+        // Calculate line position more accurately
+        function calculateLinePosition(textarea, line) {
+            // Create a temporary div to measure text height
+            const tempDiv = document.createElement('div');
+            const computedStyle = window.getComputedStyle(textarea);
+            
+            // Copy textarea styles
+            tempDiv.style.cssText = `
+                font-family: ${computedStyle.fontFamily};
+                font-size: ${computedStyle.fontSize};
+                line-height: ${computedStyle.lineHeight};
+                padding: ${computedStyle.padding};
+                width: ${textarea.clientWidth}px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                visibility: hidden;
+                position: absolute;
+                top: -9999px;
+            `;
+            
+            // Get content up to the target line
+            const lines = textarea.value.split('\n');
+            const content = lines.slice(0, line - 1).join('\n');
+            tempDiv.textContent = content + (content ? '\n' : '') + 'x';
+            
+            document.body.appendChild(tempDiv);
+            const height = tempDiv.offsetHeight;
+            document.body.removeChild(tempDiv);
+            
+            return height;
+        }
+        
         // Highlight error or warning line
         function highlightIssue(textareaId, line, message, type) {
             type = type || errorTypes.ERROR;
@@ -755,19 +944,16 @@
             // Clear existing markers for this textarea first
             clearMarkersForTextarea(textareaId);
             
-            // Calculate position
-            const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
+            // Calculate position using the new method
+            const lineTop = calculateLinePosition(textarea, line);
             const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 15;
-            const borderWidth = parseInt(getComputedStyle(textarea).borderTopWidth) || 1;
-            
-            const lineTop = (line - 1) * lineHeight;
             
             // Create marker
             const marker = document.createElement('div');
             marker.className = type === errorTypes.ERROR ? 'error-marker' : 'warning-marker';
             marker.title = message;
-            marker.style.top = (lineTop + paddingTop + borderWidth) + 'px';
-            marker.style.height = lineHeight + 'px';
+            marker.style.top = (lineTop + paddingTop) + 'px';
+            marker.style.height = (parseInt(getComputedStyle(textarea).lineHeight) || 20) + 'px';
             marker.style.left = '45px';
             marker.style.right = '0';
             marker.style.position = 'absolute';
@@ -784,7 +970,7 @@
             
             // Scroll to the issue line
             const textareaHeight = textarea.clientHeight;
-            const targetScroll = Math.max(0, lineTop - textareaHeight / 2 + lineHeight);
+            const targetScroll = Math.max(0, lineTop - textareaHeight / 2);
             textarea.scrollTop = targetScroll;
             
             // Add highlight class to the line
@@ -900,29 +1086,47 @@
             if (!css.trim()) return errors;
             
             try {
-                // Use simpler validation approach to avoid DOM issues
+                // Create a style element to test CSS validity
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+                
+                // Check if the CSS is valid by checking if it's parseable
+                if (style.sheet && style.sheet.cssRules) {
+                    // Basic validation passed
+                } else {
+                    errors.push({
+                        type: errorTypes.ERROR,
+                        message: "Invalid CSS syntax",
+                        line: 1,
+                        tab: 'css'
+                    });
+                }
+                
+                document.head.removeChild(style);
+                
+                // Additional simple checks
                 const lines = css.split('\n');
                 let braceCount = 0;
-                let inRule = false;
-                let currentRuleStart = 0;
                 let inComment = false;
                 
                 for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i];
-                    const trimmed = line.trim();
+                    let line = lines[i].trim();
                     const lineNum = i + 1;
                     
-                    // Handle block comments
+                    // Skip empty lines
+                    if (!line) continue;
+                    
+                    // Handle comments
                     if (inComment) {
                         if (line.includes('*/')) {
                             inComment = false;
-                            line = line.substring(line.indexOf('*/') + 2);
+                            line = line.substring(line.indexOf('*/') + 2).trim();
                         } else {
-                            continue; // Skip lines inside block comments
+                            continue;
                         }
                     }
                     
-                    // Check for block comment start
                     if (line.includes('/*')) {
                         inComment = true;
                         if (line.includes('*/')) {
@@ -933,49 +1137,29 @@
                         }
                     }
                     
-                    // Skip empty lines and single-line comments
-                    if (!trimmed || trimmed.startsWith('//')) continue;
+                    // Skip single line comments
+                    if (line.startsWith('//')) continue;
                     
-                    // Check for unclosed braces
-                    const openBraces = (line.match(/{/g) || []).length;
-                    const closeBraces = (line.match(/}/g) || []).length;
-                    braceCount += openBraces - closeBraces;
+                    // Count braces for basic balance check
+                    braceCount += (line.match(/{/g) || []).length;
+                    braceCount -= (line.match(/}/g) || []).length;
                     
-                    // Check for syntax errors in rules
-                    if (trimmed.endsWith('{') && !trimmed.startsWith('@')) {
-                        const selector = trimmed.slice(0, -1).trim();
-                        if (!selector) {
-                            errors.push({
-                                type: errorTypes.ERROR,
-                                message: "Missing selector before {",
-                                line: lineNum,
-                                tab: 'css'
-                            });
-                        }
-                        inRule = true;
-                        currentRuleStart = lineNum;
-                    }
-                    
-                    // Check for property: value pairs
-                    if (braceCount > 0 && trimmed && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
-                        !trimmed.startsWith('@') && !trimmed.includes(':') && !trimmed.startsWith('/*') && 
-                        !trimmed.endsWith('*/')) {
-                        // This might be a malformed property
+                    // Check for obvious syntax errors
+                    if (line.includes(';;')) {
                         errors.push({
                             type: errorTypes.WARNING,
-                            message: "Invalid CSS declaration - missing colon?",
+                            message: "Double semicolon detected",
                             line: lineNum,
                             tab: 'css'
                         });
                     }
                     
-                    // Check for missing semicolons at end of property lines
-                    if (braceCount > 0 && trimmed && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
-                        !trimmed.startsWith('@') && trimmed.includes(':') && !trimmed.endsWith(';') && 
-                        !trimmed.includes('{') && !trimmed.includes('}') && !trimmed.startsWith('/*') && 
-                        !trimmed.endsWith('*/') && i < lines.length - 1) {
+                    // Check for property without semicolon (simple heuristic)
+                    if (line.includes(':') && !line.trim().endsWith(';') && !line.trim().endsWith('{') && 
+                        !line.trim().endsWith('}') && i < lines.length - 1) {
                         const nextLine = lines[i + 1].trim();
-                        if (nextLine && !nextLine.endsWith('}') && !nextLine.startsWith('/*')) {
+                        if (nextLine && !nextLine.startsWith('/*') && !nextLine.startsWith('//') && 
+                            !nextLine.endsWith('}') && !nextLine.includes('{')) {
                             errors.push({
                                 type: errorTypes.WARNING,
                                 message: "Missing semicolon",
@@ -984,17 +1168,12 @@
                             });
                         }
                     }
-                    
-                    // Check for rule termination
-                    if (trimmed.endsWith('}') && inRule) {
-                        inRule = false;
-                    }
                 }
                 
                 if (braceCount !== 0) {
                     errors.push({
                         type: errorTypes.ERROR,
-                        message: 'Unbalanced braces (missing ' + (braceCount > 0 ? '}' : '{') + ')',
+                        message: `Unbalanced braces - ${braceCount > 0 ? braceCount + ' missing }' : Math.abs(braceCount) + ' missing {'}`,
                         line: lines.length,
                         tab: 'css'
                     });
@@ -1002,19 +1181,12 @@
                 
                 return errors;
             } catch (err) {
-                // Extract line number from CSS error
-                let line = 1;
-                const lineMatch = err.message.match(/line (\d+)/i) || 
-                                 err.stack.match(/<anonymous>:(\d+):(\d+)/i);
-                if (lineMatch) line = parseInt(lineMatch[1]);
-                
-                errors.push({
+                return [{
                     type: errorTypes.ERROR,
-                    message: err.message.replace(/^CSS\..*?: /, ''),
-                    line: line,
+                    message: err.message,
+                    line: 1,
                     tab: 'css'
-                });
-                return errors;
+                }];
             }
         }
 
@@ -1036,8 +1208,8 @@
                     const lineNum = i + 1;
                     let trimmed = line.trim();
                     
-                    // Skip empty lines
-                    if (!trimmed) continue;
+                    // Skip empty lines and comments
+                    if (!trimmed || trimmed.startsWith('//')) continue;
                     
                     // Check for assignment in condition (common typo)
                     if (line.includes('if (') && line.includes('=') && !line.includes('==') && !line.includes('===') && 
@@ -1055,11 +1227,12 @@
                     
                     // Check for missing semicolons (simple heuristic)
                     const lastChar = trimmed[trimmed.length - 1];
-                    if (lastChar && ![';', '{', '}', ')', '(', ',', '.', '=', '+', '-', '*', '/'].includes(lastChar) &&
+                    if (lastChar && ![';', '{', '}', ')', '(', ',', '.', '=', '+', '-', '*', '/', ':', '?', '!', '[', ']'].includes(lastChar) &&
                         !trimmed.startsWith('//') && !trimmed.startsWith('/*') && !trimmed.endsWith('*/') &&
                         !trimmed.startsWith('function') && !trimmed.startsWith('if') && !trimmed.startsWith('for') && 
                         !trimmed.startsWith('while') && !trimmed.startsWith('const') && !trimmed.startsWith('let') && 
-                        !trimmed.startsWith('var') && !trimmed.startsWith('return') && !trimmed.startsWith('console')) {
+                        !trimmed.startsWith('var') && !trimmed.startsWith('return') && !trimmed.startsWith('console') &&
+                        !trimmed.startsWith('export') && !trimmed.startsWith('import') && !trimmed.startsWith('class')) {
                         errors.push({
                             type: errorTypes.WARNING,
                             message: "Missing semicolon",
@@ -1110,14 +1283,21 @@
                     return inSingleLineComment || inMultiLineComment || inString;
                 }
             } catch (err) {
-                // Extract line number from JS error
-                const lineMatch = err.stack.match(/<anonymous>:(\d+):(\d+)/i) || 
-                                 err.stack.match(/eval:(\d+):(\d+)/i);
-                const line = lineMatch ? parseInt(lineMatch[1]) : 1;
+                // Extract line number from JS error more reliably
+                let line = 1;
+                const stackLines = err.stack.split('\n');
+                
+                for (const stackLine of stackLines) {
+                    const match = stackLine.match(/:(\d+):(\d+)\)?$/);
+                    if (match) {
+                        line = parseInt(match[1]);
+                        break;
+                    }
+                }
                 
                 errors.push({
                     type: errorTypes.ERROR,
-                    message: err.message,
+                    message: err.message.replace(/^.*?:\s*/, ''),
                     line: line,
                     tab: 'js'
                 });
@@ -1127,6 +1307,7 @@
 
         // Stop running code
         function stopCode() {
+            console.log("Stop button clicked");
             if (currentIframe) {
                 currentIframe.remove();
                 currentIframe = null;
@@ -1137,6 +1318,7 @@
 
         // Reset to default code (empty)
         function resetCode() {
+            console.log("Reset button clicked");
             document.getElementById("html-code").value = "";
             document.getElementById("css-code").value = "";
             document.getElementById("js-code").value = "";
@@ -1146,6 +1328,7 @@
 
         // Clear output and errors
         function clearCode() {
+            console.log("Clear button clicked");
             stopCode();
             document.getElementById("output").innerHTML = "<p>Output will appear here after running your code.</p>";
             document.getElementById("error").textContent = "";
@@ -1158,11 +1341,15 @@
             updateErrorSummary();
             updateErrorCount();
             updateStatus("Cleared");
+            resetOverride();
         }
         
         // Update status bar
         function updateStatus(message) {
-            document.getElementById("status").textContent = message;
+            const status = document.getElementById("status");
+            if (status) {
+                status.textContent = message;
+            }
         }
         
         // Update error count display
@@ -1173,12 +1360,17 @@
             const warningCount = allErrors.filter(function(e) { 
                 return e.type === errorTypes.WARNING; 
             }).length;
-            document.getElementById("error-count").textContent = 'Errors: ' + errorCount + ' | Warnings: ' + warningCount;
+            const errorCountElement = document.getElementById("error-count");
+            if (errorCountElement) {
+                errorCountElement.textContent = 'Errors: ' + errorCount + ' | Warnings: ' + warningCount;
+            }
         }
         
         // Update error summary panel
         function updateErrorSummary() {
             const errorList = document.getElementById("error-list");
+            if (!errorList) return;
+            
             errorList.innerHTML = "";
             
             if (allErrors.length === 0) {
@@ -1211,6 +1403,8 @@
             const prevBtn = document.getElementById("prev-error");
             const nextBtn = document.getElementById("next-error");
             const currentErrorDisplay = document.getElementById("current-error");
+            
+            if (!prevBtn || !nextBtn || !currentErrorDisplay) return;
             
             // Get errors for current tab
             const currentTabErrors = tabErrors[currentTab] || [];
@@ -1318,77 +1512,117 @@
 
         // Run code with full validation
         function runCode() {
-            const html = document.getElementById("html-code").value;
-            const css = document.getElementById("css-code").value;
-            const js = document.getElementById("js-code").value;
-            
-            const output = document.getElementById("output");
-            const errorDisplay = document.getElementById("error");
-            
-            // Clear previous
-            stopCode();
-            clearAllMarkers();
-            errorDisplay.textContent = "";
-            allErrors = [];
-            currentErrorIndex = -1;
-            tabErrors = { html: [], css: [], js: [] };
-            currentTabErrorIndex = { html: -1, css: -1, js: -1 };
-            
-            updateStatus("Validating code...");
-            
-            // Validate all code types
-            const htmlErrors = validateHTML(html);
-            const cssErrors = validateCSS(css);
-            const jsErrors = validateJS(js);
-            
-            // Combine all errors and organize by tab
-            allErrors = htmlErrors.concat(cssErrors).concat(jsErrors);
-            tabErrors.html = htmlErrors;
-            tabErrors.css = cssErrors;
-            tabErrors.js = jsErrors;
-            
-            // Update UI with errors
-            updateErrorCount();
-            updateErrorSummary();
-            updateErrorNavigation();
-            
-            // If there are errors, show the first one
-            if (allErrors.length > 0) {
-                // Find first error for current tab, or first error overall
-                let firstErrorIndex = 0;
-                const currentTabError = tabErrors[currentTab];
-                if (currentTabError && currentTabError.length > 0) {
-                    for (let i = 0; i < allErrors.length; i++) {
-                        const e = allErrors[i];
-                        if (e.tab === currentTabError[0].tab && 
-                            e.line === currentTabError[0].line && 
-                            e.message === currentTabError[0].message) {
-                            firstErrorIndex = i;
-                            break;
-                        }
-                    }
+            console.log("Run button clicked");
+            overrideEnabled = false;
+            executeCode();
+        }
+
+        // Force run code despite errors
+        function forceRunCode() {
+            console.log("Force Run button clicked");
+            overrideEnabled = true;
+            executeCode();
+        }
+
+        // Main code execution function
+        function executeCode() {
+            try {
+                console.log("Executing code...");
+                const html = document.getElementById("html-code").value;
+                const css = document.getElementById("css-code").value;
+                const js = document.getElementById("js-code").value;
+                
+                const output = document.getElementById("output");
+                const errorDisplay = document.getElementById("error");
+                
+                if (!output || !errorDisplay) {
+                    console.error("Output or error display element not found");
+                    return;
                 }
                 
-                if (firstErrorIndex !== -1) {
-                    navigateToError(firstErrorIndex);
+                // Clear previous
+                stopCode();
+                clearAllMarkers();
+                errorDisplay.textContent = "";
+                allErrors = [];
+                currentErrorIndex = -1;
+                tabErrors = { html: [], css: [], js: [] };
+                currentTabErrorIndex = { html: -1, css: -1, js: -1 };
+                
+                updateStatus("Validating code...");
+                
+                // Validate all code types
+                const htmlErrors = validateHTML(html);
+                const cssErrors = validateCSS(css);
+                const jsErrors = validateJS(js);
+                
+                // Combine all errors and organize by tab
+                allErrors = htmlErrors.concat(cssErrors).concat(jsErrors);
+                tabErrors.html = htmlErrors;
+                tabErrors.css = cssErrors;
+                tabErrors.js = jsErrors;
+                
+                // Update UI with errors
+                updateErrorCount();
+                updateErrorSummary();
+                updateErrorNavigation();
+                
+                // Check if we should proceed with execution
+                const hasErrors = allErrors.length > 0;
+                const hasCriticalErrors = allErrors.some(error => error.type === errorTypes.ERROR);
+                
+                // If there are errors and override is not enabled, show the first one
+                if (hasErrors && !overrideEnabled && !alwaysOverride) {
+                    // Find first error for current tab, or first error overall
+                    let firstErrorIndex = 0;
+                    const currentTabError = tabErrors[currentTab];
+                    if (currentTabError && currentTabError.length > 0) {
+                        for (let i = 0; i < allErrors.length; i++) {
+                            const e = allErrors[i];
+                            if (e.tab === currentTabError[0].tab && 
+                                e.line === currentTabError[0].line && 
+                                e.message === currentTabError[0].message) {
+                                firstErrorIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (firstErrorIndex !== -1) {
+                        navigateToError(firstErrorIndex);
+                    }
+                    
+                    const errorText = hasCriticalErrors ? 
+                        'Found ' + allErrors.length + ' issues. Fix errors or use "Force Run" to override.' :
+                        'Found ' + allErrors.length + ' warnings. Review or use "Force Run" to override.';
+                        
+                    errorDisplay.textContent = errorText;
+                    updateStatus('Found ' + allErrors.length + ' issues');
+                    return;
                 }
-                errorDisplay.textContent = 'Found ' + allErrors.length + ' issues. Use navigation to review them.';
-                updateStatus('Found ' + allErrors.length + ' issues');
-                return;
-            }
-            
-            updateStatus("Running code...");
-            
-            // Create new iframe for output
-            currentIframe = document.createElement("iframe");
-            currentIframe.className = "output-frame";
-            currentIframe.sandbox = "allow-scripts allow-same-origin";
-            output.innerHTML = "";
-            output.appendChild(currentIframe);
-            
-            const iframeDoc = currentIframe.contentDocument || currentIframe.contentWindow.document;
-            
-            try {
+                
+                // If we're overriding, show a warning but proceed
+                if ((overrideEnabled || alwaysOverride) && hasErrors) {
+                    updateStatus("Overriding " + allErrors.length + " issues and running code...");
+                    errorDisplay.textContent = "Running code with " + allErrors.length + " known issues (override active)";
+                    
+                    // Still show the first error for reference, but don't block execution
+                    if (allErrors.length > 0) {
+                        navigateToError(0);
+                    }
+                } else {
+                    updateStatus("Running code...");
+                }
+                
+                // Create new iframe for output
+                currentIframe = document.createElement("iframe");
+                currentIframe.className = "output-frame";
+                currentIframe.sandbox = "allow-scripts allow-same-origin";
+                output.innerHTML = "";
+                output.appendChild(currentIframe);
+                
+                const iframeDoc = currentIframe.contentDocument || currentIframe.contentWindow.document;
+                
                 // Generate a unique ID for this iframe for message identification
                 const iframeId = 'iframe_' + Date.now();
                 currentIframe.dataset.iframeId = iframeId;
@@ -1447,12 +1681,49 @@
                     </html>\
                 ');
                 iframeDoc.close();
-                updateStatus("Code executed successfully");
+                
+                const statusMessage = (overrideEnabled || alwaysOverride) && hasErrors ? 
+                    "Code executed with " + allErrors.length + " overridden issues" :
+                    "Code executed successfully";
+                    
+                updateStatus(statusMessage);
             } catch (err) {
-                console.error("Error writing to iframe:", err);
-                displayError("Frame Error: " + err.message);
+                console.error("Error in executeCode:", err);
+                displayError("Execution Error: " + err.message);
                 updateStatus("Error executing code");
             }
+        }
+        
+        // Update override toggle UI
+        function updateOverrideToggle() {
+            const toggle = document.getElementById('override-toggle');
+            const checkbox = document.getElementById('override-checkbox');
+            const overrideBtn = document.getElementById('override-btn');
+            
+            if (!toggle || !checkbox || !overrideBtn) return;
+            
+            if (alwaysOverride) {
+                toggle.classList.add('override-active');
+                overrideBtn.classList.add('active');
+                overrideBtn.disabled = true;
+                overrideBtn.title = "Override is always enabled";
+            } else {
+                toggle.classList.remove('override-active');
+                overrideBtn.classList.remove('active');
+                overrideBtn.disabled = false;
+                overrideBtn.title = "Run code despite validation issues";
+            }
+        }
+        
+        // Reset override state
+        function resetOverride() {
+            overrideEnabled = false;
+            alwaysOverride = false;
+            const checkbox = document.getElementById('override-checkbox');
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            updateOverrideToggle();
         }
         
         // Enhanced message listener with security validation
@@ -1486,21 +1757,30 @@
                     navigateToError(0);
                 }
                 
-                document.getElementById("error").textContent = 'Runtime Error: ' + errorInfo.message;
+                const errorDisplay = document.getElementById("error");
+                if (errorDisplay) {
+                    errorDisplay.textContent = 'Runtime Error: ' + errorInfo.message;
+                }
                 updateStatus("Runtime error detected");
             }
         });
         
         function displayError(err) {
-            document.getElementById("error").textContent = err;
+            const errorDisplay = document.getElementById("error");
+            if (errorDisplay) {
+                errorDisplay.textContent = err;
+            }
             updateStatus("Error detected");
         }
 
         // Make panels resizable
         function setupResizers() {
             const container = document.querySelector('.editor-container');
-            const leftPanel = container.children[0];
             const resizer = document.getElementById('resizer');
+            
+            if (!container || !resizer) return;
+            
+            const leftPanel = container.children[0];
             const rightPanel = container.children[2];
             
             let isResizing = false;
