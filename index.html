@@ -75,7 +75,6 @@
             position: relative;
             border: 1px solid #e1e8ed;
             border-radius: 8px;
-            background: #f8f9fa;
         }
         
         .code-box-container {
@@ -92,15 +91,13 @@
             height: 100%;
             overflow: auto;
             background: #f8f9fa;
-            display: grid;
-            grid-template-columns: auto 1fr;
         }
         
         .code-box { 
             width: 100%;
             min-height: 100%;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
-            padding: 15px 15px 15px 10px;
+            padding: 15px 15px 15px 50px;
             margin: 0;
             border: none;
             background: transparent; 
@@ -112,14 +109,18 @@
             outline: none;
             font-size: 14px;
             color: #2c3e50;
-            grid-column: 2;
-            position: static;
-            z-index: 10;
+            display: block;
+            position: relative;
+            z-index: 1;
+            box-sizing: border-box;
         }
         
         .line-numbers {
-            grid-column: 1;
-            width: 40px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 45px;
+            height: auto;
             padding: 15px 5px;
             border-right: 1px solid #e1e8ed;
             background-color: #f1f3f4;
@@ -129,14 +130,9 @@
             user-select: none;
             font-size: 14px;
             line-height: 21px;
-            z-index: 1;
+            z-index: 2;
             pointer-events: none;
-            position: sticky;
-            left: 0;
-            top: 0;
-            height: fit-content;
-            min-height: 100%;
-            overflow: hidden;
+            box-sizing: border-box;
         }
         
         .line-numbers div {
@@ -151,10 +147,9 @@
             background-color: rgba(231, 76, 60, 0.2);
             border-left: 3px solid #e74c3c;
             pointer-events: none;
-            z-index: 5;
-            left: 0;
+            z-index: 3;
+            left: 45px;
             right: 0;
-            grid-column: 2;
         }
         
         .error-line {
@@ -166,10 +161,9 @@
             background-color: rgba(243, 156, 18, 0.2);
             border-left: 3px solid #f39c12;
             pointer-events: none;
-            z-index: 5;
-            left: 0;
+            z-index: 3;
+            left: 45px;
             right: 0;
-            grid-column: 2;
         }
         
         .warning-line {
@@ -763,13 +757,12 @@ if (x = 5) {
             }, 50);
         }
         
-        // Initialize line numbers with better synchronization
+        // Initialize line numbers - SIMPLIFIED WORKING VERSION
         function setupLineNumbers(textareaId, lineNumbersId) {
             const textarea = document.getElementById(textareaId);
             const lineNumbers = document.getElementById(lineNumbersId);
-            const wrapper = textarea.closest('.code-box-wrapper');
             
-            if (!textarea || !lineNumbers || !wrapper) return;
+            if (!textarea || !lineNumbers) return;
             
             const LINE_HEIGHT = 21;
             const PADDING_TOP = 15;
@@ -783,7 +776,7 @@ if (x = 5) {
                 // Clear existing line numbers
                 lineNumbers.innerHTML = '';
                 
-                // Add line numbers with exact heights
+                // Add line numbers
                 for (let i = 1; i <= lineCount; i++) {
                     const lineNumber = document.createElement('div');
                     lineNumber.textContent = i;
@@ -796,40 +789,41 @@ if (x = 5) {
                 // Calculate total height needed
                 const totalHeight = (lineCount * LINE_HEIGHT) + PADDING_TOP + PADDING_BOTTOM;
                 
-                // Set wrapper and textarea heights
+                // Set minimum heights
                 textarea.style.minHeight = totalHeight + 'px';
                 lineNumbers.style.minHeight = totalHeight + 'px';
                 
-                // Ensure wrapper scrolls properly
-                wrapper.style.overflow = 'auto';
-                
-                console.log(`Updated ${lineCount} lines for ${textareaId}, total height: ${totalHeight}px`);
+                // Sync scroll
+                syncScroll();
             }
             
             // Sync scroll between line numbers and textarea
             function syncScroll() {
-                lineNumbers.style.transform = `translateY(-${wrapper.scrollTop}px)`;
+                const wrapper = textarea.parentElement;
+                if (wrapper) {
+                    // Move line numbers with transform
+                    lineNumbers.style.transform = `translateY(-${wrapper.scrollTop}px)`;
+                }
             }
             
-            // Setup event listeners
-            wrapper.addEventListener('scroll', syncScroll);
-            
-            // Update on input with debouncing
-            let updateTimeout;
-            function scheduleUpdate() {
-                clearTimeout(updateTimeout);
-                updateTimeout = setTimeout(updateLineNumbers, 50);
+            // Setup scroll event
+            const wrapper = textarea.parentElement;
+            if (wrapper) {
+                wrapper.addEventListener('scroll', syncScroll);
             }
             
-            textarea.addEventListener('input', scheduleUpdate);
+            // Update on input
+            textarea.addEventListener('input', function() {
+                updateLineNumbers();
+            });
             
-            // Also update on paste, change, etc.
-            textarea.addEventListener('paste', scheduleUpdate);
-            textarea.addEventListener('cut', scheduleUpdate);
+            // Update on paste
+            textarea.addEventListener('paste', function() {
+                setTimeout(updateLineNumbers, 0);
+            });
             
-            // Handle keyboard events for better responsiveness
+            // Handle keyboard events
             textarea.addEventListener('keydown', function(e) {
-                // Handle Tab key
                 if (e.key === 'Tab') {
                     e.preventDefault();
                     const start = this.selectionStart;
@@ -857,11 +851,10 @@ if (x = 5) {
                         this.selectionStart = this.selectionEnd = start + 4;
                     }
                     
-                    scheduleUpdate();
+                    updateLineNumbers();
                     return;
                 }
                 
-                // Handle Enter key with auto-indentation
                 if (e.key === 'Enter') {
                     const beforeCursor = textarea.value.substring(0, textarea.selectionStart);
                     const currentLineStart = beforeCursor.lastIndexOf('\n') + 1;
@@ -869,7 +862,6 @@ if (x = 5) {
                     const match = currentLine.match(/^(\s*)/);
                     const indentation = match ? match[1] : '';
                     
-                    // Use setTimeout to run after the default Enter behavior
                     setTimeout(() => {
                         const cursorPos = textarea.selectionStart;
                         const value = textarea.value;
@@ -877,19 +869,13 @@ if (x = 5) {
                                        indentation + 
                                        value.substring(cursorPos);
                         textarea.selectionStart = textarea.selectionEnd = cursorPos + indentation.length;
-                        scheduleUpdate();
+                        updateLineNumbers();
                     }, 0);
                 }
             });
             
-            // Handle window resize
-            window.addEventListener('resize', scheduleUpdate);
-            
             // Initial setup
             updateLineNumbers();
-            
-            // Force a re-layout after a short delay
-            setTimeout(updateLineNumbers, 100);
         }
         
         // Update line numbers for specific tab
@@ -897,9 +883,8 @@ if (x = 5) {
             try {
                 const textarea = document.getElementById(tabName + '-code');
                 const lineNumbers = document.getElementById(tabName + '-line-numbers');
-                const wrapper = textarea?.closest('.code-box-wrapper');
                 
-                if (!textarea || !lineNumbers || !wrapper) return;
+                if (!textarea || !lineNumbers) return;
                 
                 const lines = textarea.value.split('\n');
                 const LINE_HEIGHT = 21;
@@ -925,12 +910,6 @@ if (x = 5) {
                 
                 // Reset transform
                 lineNumbers.style.transform = 'translateY(0)';
-                
-                // Force reflow
-                void lineNumbers.offsetHeight;
-                void textarea.offsetHeight;
-                
-                console.log(`Updated ${lines.length} lines for ${tabName}`);
             } catch (error) {
                 console.error('Error updating line numbers:', error);
             }
@@ -946,7 +925,7 @@ if (x = 5) {
         // Helper function to clear markers for specific textarea
         function clearMarkersForTextarea(textareaId) {
             const textarea = document.getElementById(textareaId);
-            const wrapper = textarea?.closest('.code-box-wrapper');
+            const wrapper = textarea?.parentElement;
             
             if (!wrapper) return;
             
@@ -1003,25 +982,11 @@ if (x = 5) {
             });
         }
         
-        // Calculate line position more accurately
-        function calculateLinePosition(textarea, line) {
-            const lines = textarea.value.split('\n');
-            if (line < 1 || line > lines.length) return 0;
-            
-            // Use fixed line height for exact positioning
-            const LINE_HEIGHT = 21;
-            const paddingTop = parseInt(getComputedStyle(textarea).paddingTop) || 15;
-            
-            // Calculate position based on line number
-            const position = (line - 1) * LINE_HEIGHT + paddingTop;
-            return Math.max(0, position);
-        }
-        
-        // Highlight error or warning line - UPDATED FOR NEW LAYOUT
+        // Highlight error or warning line
         function highlightIssue(textareaId, line, message, type) {
             type = type || errorTypes.ERROR;
             const textarea = document.getElementById(textareaId);
-            const wrapper = textarea.closest('.code-box-wrapper');
+            const wrapper = textarea.parentElement;
             
             if (!textarea || !wrapper) return;
             
@@ -1034,8 +999,8 @@ if (x = 5) {
             
             // Calculate exact position
             const LINE_HEIGHT = 21;
-            const PADDING_TOP = 15;
-            const lineTop = (line - 1) * LINE_HEIGHT + PADDING_TOP;
+            const paddingTop = 15;
+            const lineTop = (line - 1) * LINE_HEIGHT + paddingTop;
             
             // Create marker
             const marker = document.createElement('div');
@@ -1043,11 +1008,11 @@ if (x = 5) {
             marker.title = message;
             marker.style.top = lineTop + 'px';
             marker.style.height = LINE_HEIGHT + 'px';
-            marker.style.left = '0';
+            marker.style.left = '45px';
             marker.style.right = '0';
             marker.style.position = 'absolute';
             marker.style.pointerEvents = 'none';
-            marker.style.zIndex = '5';
+            marker.style.zIndex = '3';
             
             wrapper.appendChild(marker);
             
@@ -1059,12 +1024,18 @@ if (x = 5) {
             
             // Scroll to the issue line with padding
             const wrapperHeight = wrapper.clientHeight;
-            const targetScroll = Math.max(0, lineTop - wrapperHeight / 2);
+            const wrapperScrollTop = wrapper.scrollTop;
+            const linePositionInViewport = lineTop - wrapperScrollTop;
             
-            wrapper.scrollTo({
-                top: targetScroll,
-                behavior: 'smooth'
-            });
+            // If the line is not visible in the viewport, scroll to it
+            if (linePositionInViewport < 0 || linePositionInViewport > wrapperHeight) {
+                const targetScroll = Math.max(0, lineTop - wrapperHeight / 2);
+                
+                wrapper.scrollTo({
+                    top: targetScroll,
+                    behavior: 'smooth'
+                });
+            }
             
             // Add highlight class to the line
             setTimeout(function() {
